@@ -20,6 +20,8 @@ paczka `plagcheck-oracle-<wersja>.tar.gz`, `deploy/oracle/deploy.sh IP`.
 model parafraz w czystym numpy (`app/services/minilm_numpy.py`), zapytania słowami kluczowymi,
 ustawienia w aplikacji (`/api/settings`, tylko MOBILE_MODE). Budowa APK: `.github/workflows/android.yml`.
 Skill pisania po polsku: `.claude/skills/polski-jak-czlowiek/` — używaj go do wszystkich tekstów PL.
+**Aktualizacje APK (Obtainium):** każda zmiana dla telefonu wymaga podbicia `__version__` w `app/__init__.py` —
+workflow publikuje wtedy GitHub Release `v<wersja>` z APK; bez podbicia Obtainium nie zobaczy aktualizacji.
 
 ## Stos technologiczny (faktyczny)
 

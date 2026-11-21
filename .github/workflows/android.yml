@@ -3,7 +3,9 @@
 # 1. Konwersja modelu parafraz (paraphrase-multilingual-MiniLM-L12-v2) do formatu numpy
 #    i weryfikacja z oryginałem (tokenizacja + cosinus embeddingów) — CI pada, jeśli się różnią.
 # 2. Kopiowanie rdzenia aplikacji (app/) i modelu do projektu Androida.
-# 3. Gradle + Chaquopy → podpisany APK do instalacji z pliku (artefakt "PlagCheck-APK").
+# 3. Gradle + Chaquopy → podpisany APK do instalacji z pliku (artefakt "PlagCheck-<wersja>").
+# 4. Nowa wersja (__version__ w app/__init__.py) na gałęzi domyślnej → GitHub Release "v<wersja>"
+#    z plikiem APK — z niego instaluje i aktualizuje aplikację Obtainium.
 name: Android APK
 
 on:
@@ -19,7 +21,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write   # tworzenie GitHub Release dla Obtainium
 
 jobs:
   apk:
@@ -95,3 +97,26 @@ jobs:
             PlagCheck-*.apk.sha256
           retention-days: 14
           compression-level: 0
+
+      - name: GitHub Release dla Obtainium (tylko nowa wersja)
+        if: github.ref_name == github.event.repository.default_branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NAME: ${{ steps.apk.outputs.name }}
+        run: |
+          VERSION="${NAME#PlagCheck-}"
+          if gh release view "v$VERSION" >/dev/null 2>&1; then
+            echo "Release v$VERSION już istnieje — pomijam. Aby opublikować aktualizację, podbij __version__ w app/__init__.py."
+            exit 0
+          fi
+          SHA=$(cut -d' ' -f1 "$NAME.apk.sha256")
+          printf '%s\n' \
+            "Aplikacja PlagCheck na Androida — wszystko w telefonie, bez serwera." \
+            "" \
+            "Instalacja i aktualizacje przez Obtainium: dodaj aplikację z adresu https://github.com/${{ github.repository }}" \
+            "Instrukcja: docs/ANDROID.md" \
+            "" \
+            "SHA-256: \`$SHA\`" > notes.md
+          gh release create "v$VERSION" "$NAME.apk" "$NAME.apk.sha256" \
+            --target "$GITHUB_SHA" --title "PlagCheck $VERSION" --notes-file notes.md
+          echo "Opublikowano release v$VERSION" >> "$GITHUB_STEP_SUMMARY"

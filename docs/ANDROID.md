@@ -6,7 +6,24 @@ wyszukiwania fraz (Wikipedia, OpenAlex, opcjonalnie Brave/Serper/SerpAPI). Bez s
 
 Wymagania: Android 10 lub nowszy, procesor 64-bit (ARM64), ~600 MB wolnego miejsca.
 
-## Instalacja
+## Instalacja przez Obtainium (zalecane — automatyczne aktualizacje)
+
+[Obtainium](https://github.com/ImranR98/Obtainium) instaluje i aktualizuje aplikacje prosto
+z GitHub Releases. Każda nowa wersja PlagCheck jest publikowana automatycznie jako release `v<wersja>`.
+
+1. Zainstaluj Obtainium (z jego strony na GitHubie albo z F-Droid / IzzyOnDroid).
+2. Obtainium → **Dodaj aplikację** → w polu adresu wpisz:
+   `https://github.com/Jack4B/plagCheck` → **Dodaj**.
+   Repozytorium jest publiczne, więc token GitHuba nie jest potrzebny.
+3. Na karcie PlagCheck stuknij **Zainstaluj** (przy pierwszej instalacji Android zapyta o zgodę
+   na instalowanie aplikacji z Obtainium — zezwól).
+4. Aktualizacje: Obtainium sprawdza nowe wersje w tle i pokazuje powiadomienie; stuknij **Aktualizuj**.
+   Historia, baza lokalna i ustawienia zostają.
+
+Jeśli PlagCheck jest już zainstalowany z pliku ZIP, Obtainium go rozpozna i będzie aktualizował
+(ten sam podpis).
+
+## Instalacja ręczna (plik z GitHub Actions)
 
 1. Na GitHubie: repozytorium → **Actions** → **Android APK** → najnowsze zielone uruchomienie →
    sekcja **Artifacts** → pobierz `PlagCheck-<wersja>` (plik ZIP; trzeba być zalogowanym).
@@ -61,5 +78,11 @@ adresie 127.0.0.1 — inne urządzenia w sieci Wi-Fi nie mają do niego dostępu
   i `mobile/`, także ręcznie przez *Run workflow*).
 - Model: `mobile/model/convert.py` (sentence-transformers → numpy) i `mobile/model/verify.py`
   (tokenizacja ≥ 98% zgodna, cosinus z oryginałem ≥ 0,99) — CI pada, gdy weryfikacja nie przejdzie.
-- Klucz podpisu `mobile/android/app/plagcheck-sideload.keystore` jest w repozytorium celowo
-  (instalacja z pliku, stały podpis dla aktualizacji). Nie nadaje się do Sklepu Play.
+- Nowa wersja dla Obtainium = podbicie `__version__` w `app/__init__.py`; workflow tworzy wtedy
+  release `v<wersja>` z APK (dla tej samej wersji release nie jest nadpisywany).
+- Klucz podpisu `mobile/android/app/plagcheck-sideload.keystore` jest w repozytorium (stały podpis
+  dla aktualizacji bez sekretów na GitHubie). **Repozytorium jest publiczne**, więc ktoś inny
+  mógłby podpisać tym kluczem własny APK — Android uznałby go za aktualizację PlagCheck.
+  Dopóki instalujesz wyłącznie przez Obtainium z tego repozytorium albo z artefaktów jego Actions,
+  ryzyko jest małe. Pełna ochrona wymaga klucza w sekretach repozytorium (zmiana klucza oznacza
+  jednorazową reinstalację aplikacji).
