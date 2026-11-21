@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - python: "3.11"
+            profile: ct8          # pydantic v1, jak na serwerze
+          - python: "3.13"
+            profile: pydantic-v2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install (CT8 lock)
+        if: matrix.profile == 'ct8'
+        run: pip install --no-deps -r requirements-lock.txt && pip install pytest httpx
+      - name: Install (pydantic v2)
+        if: matrix.profile == 'pydantic-v2'
+        run: pip install -r requirements-dev.txt "pydantic>=2,<3"
+      - run: pytest
+      - name: Build CT8 package (fails if any dependency is not pure Python)
+        if: matrix.profile == 'ct8'
+        run: ./scripts/build_package.sh

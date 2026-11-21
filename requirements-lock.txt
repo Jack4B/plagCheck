@@ -1,0 +1,14 @@
+# Pełna, przypięta lista zależności dla CT8 (FreeBSD, Python 3.11+).
+# Instalowana z --no-deps: pomija greenlet (wymagany przez SQLAlchemy tylko dla asyncio,
+# a na FreeBSD/amd64 musiałby się kompilować). Wszystkie pakiety to koła *-none-any.
+a2wsgi==1.10.8
+anyio==4.16.0
+fastapi==0.115.6
+idna==3.20
+pydantic==1.10.27
+PyMySQL==1.1.1
+pypdf==5.1.0
+python-multipart==0.0.20
+SQLAlchemy==2.0.36
+starlette==0.41.3
+typing_extensions==4.16.0

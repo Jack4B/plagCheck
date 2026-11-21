@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PlagCheck — samokontrola prac</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23304a8c'/%3E%3Cpath d='M9 22V10h7a4 4 0 0 1 0 8h-7' stroke='white' stroke-width='3' fill='none'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/static/styles.css">
+  <script type="module" src="/static/app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#/">
+      <span class="brand-mark" aria-hidden="true">P</span>
+      <span>PlagCheck</span>
+    </a>
+    <nav class="nav" aria-label="Główna nawigacja">
+      <a href="#/" data-nav="new">Nowe sprawdzenie</a>
+      <a href="#/history" data-nav="history">Historia</a>
+      <a href="#/refs" data-nav="refs">Baza lokalna</a>
+    </nav>
+  </header>
+
+  <div class="disclaimer" role="note">
+    <strong>To nie jest zamiennik JSA ani komercyjnych detektorów AI.</strong>
+    Wyniki mają charakter pomocniczy i mogą zawierać fałszywe trafienia. Narzędzie służy wyłącznie do samokontroli własnych prac.
+  </div>
+
+  <main id="view" class="container" aria-live="polite"></main>
+
+  <footer class="footer">
+    <span id="footer-info">PlagCheck</span>
+    <span>Dokumenty nie są przechowywane — raporty wygasają automatycznie. ORPPD i prywatne bazy uczelni nie są przeszukiwane.</span>
+  </footer>
+
+  <dialog id="access-dialog">
+    <form method="dialog" id="access-form">
+      <h2>Klucz dostępu</h2>
+      <p class="muted">Ta instancja wymaga klucza dostępu ustawionego przez administratora.</p>
+      <input id="access-input" type="password" autocomplete="current-password" required aria-label="Klucz dostępu">
+      <div class="row end"><button class="btn primary" value="ok">Zapisz</button></div>
+    </form>
+  </dialog>
+</body>
+</html>

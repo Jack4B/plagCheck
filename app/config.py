@@ -1,0 +1,114 @@
+"""Konfiguracja aplikacji — zmienne środowiskowe + opcjonalny plik .env.
+
+Celowo bez zależności (python-dotenv), żeby instalacja na CT8 była minimalna.
+"""
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass, field
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+def load_env_file(path: Path) -> None:
+    """Wczytuje proste pliki KEY=VALUE. Nie nadpisuje istniejących zmiennych."""
+    if not path.is_file():
+        return
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "'\"":
+            value = value[1:-1]
+        os.environ.setdefault(key, value)
+
+
+def _int(name: str, default: int) -> int:
+    try:
+        return int(os.environ.get(name, default))
+    except ValueError:
+        return default
+
+
+def _float(name: str, default: float) -> float:
+    try:
+        return float(os.environ.get(name, default))
+    except ValueError:
+        return default
+
+
+def _bool(name: str, default: bool) -> bool:
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on", "tak"}
+
+
+@dataclass
+class Settings:
+    data_dir: Path
+    database_url: str
+    access_key: str
+    # Wyszukiwanie w sieci
+    search_provider: str  # brave | serper | serpapi | wikipedia | none
+    brave_api_key: str
+    serper_api_key: str
+    serpapi_api_key: str
+    search_lang: str
+    max_web_queries: int
+    max_pages_fetched: int
+    search_cache_hours: int
+    http_timeout: float
+    # Analiza
+    phrase_min_words: int
+    phrase_max_words: int
+    shingle_size: int
+    paraphrase_threshold: float
+    max_upload_mb: int
+    max_text_chars: int
+    # Prywatność / retencja
+    report_ttl_hours: int
+    # Zadania w tle
+    worker_mode: str  # thread | cron
+    job_stale_minutes: int
+    extra: dict = field(default_factory=dict)
+
+    @property
+    def max_upload_bytes(self) -> int:
+        return self.max_upload_mb * 1024 * 1024
+
+
+def get_settings() -> Settings:
+    load_env_file(BASE_DIR / ".env")
+    data_dir = Path(os.environ.get("DATA_DIR") or BASE_DIR / "data").expanduser()
+    if not data_dir.is_absolute():
+        data_dir = (BASE_DIR / data_dir).resolve()
+    data_dir.mkdir(parents=True, exist_ok=True)
+    default_db = f"sqlite:///{data_dir / 'plagcheck.sqlite3'}"
+    return Settings(
+        data_dir=data_dir,
+        database_url=os.environ.get("DATABASE_URL") or default_db,
+        access_key=os.environ.get("ACCESS_KEY", ""),
+        search_provider=(os.environ.get("SEARCH_PROVIDER") or "auto").strip().lower(),
+        brave_api_key=os.environ.get("BRAVE_API_KEY", ""),
+        serper_api_key=os.environ.get("SERPER_API_KEY", ""),
+        serpapi_api_key=os.environ.get("SERPAPI_API_KEY", ""),
+        search_lang=os.environ.get("SEARCH_LANG") or "pl",
+        max_web_queries=_int("MAX_WEB_QUERIES", 25),
+        max_pages_fetched=_int("MAX_PAGES_FETCHED", 12),
+        search_cache_hours=_int("SEARCH_CACHE_HOURS", 24 * 7),
+        http_timeout=_float("HTTP_TIMEOUT", 10.0),
+        phrase_min_words=_int("PHRASE_MIN_WORDS", 10),
+        phrase_max_words=_int("PHRASE_MAX_WORDS", 15),
+        shingle_size=_int("SHINGLE_SIZE", 5),
+        paraphrase_threshold=_float("PARAPHRASE_THRESHOLD", 0.6),
+        max_upload_mb=_int("MAX_UPLOAD_MB", 15),
+        max_text_chars=_int("MAX_TEXT_CHARS", 400_000),
+        report_ttl_hours=_int("REPORT_TTL_HOURS", 72),
+        worker_mode=(os.environ.get("WORKER_MODE") or "thread").strip().lower(),
+        job_stale_minutes=_int("JOB_STALE_MINUTES", 15),
+    )

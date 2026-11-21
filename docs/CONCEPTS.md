@@ -1,0 +1,24 @@
+# Słownik pojęć
+
+| Pojęcie | Znaczenie w PlagCheck |
+|---------|----------------------|
+| **Fraza kontrolna** | Okno 10–15 kolejnych słów z jednego zdania, wysyłane do wyszukiwarki w cudzysłowie. Wybierane tak, by miało dużo słów treściowych i mało liczb/zwrotów szablonowych; budżet rozkładany równomiernie na cały dokument. |
+| **Token** | Słowo z offsetem znakowym w tekście (pozwala podświetlać fragmenty). |
+| **Składanie (fold)** | Małe litery + usunięcie ogonków (`zażółć → zazolc`) — dopasowanie odporne na brak polskich znaków. |
+| **Rdzeń (stem)** | Słowo po obcięciu końcówki fleksyjnej (`analizą, analizy → analiz`). Lekka namiastka lematyzacji. |
+| **Shingle (n-gram słowny)** | Ciąg 5 kolejnych złożonych tokenów. Wspólne shingle = dosłowne dopasowanie. |
+| **Mostkowanie luk** | Wypełnienie ≤ 2 niedopasowanych słów między dopasowaniami w tym samym zdaniu — wykrywa podmianę pojedynczych słów. |
+| **Minimalny przebieg** | Dopasowanie musi mieć ≥ 8 słów, inaczej jest ignorowane (typowe zbitki językowe to nie plagiat). |
+| **Parafraza** | Zdanie, którego wektor TF-IDF rdzeni ma cosinus ≥ `PARAPHRASE_THRESHOLD` (0,6) z jakimś zdaniem źródła i dzieli z nim ≥ 4 rdzenie. |
+| **Próg podobieństwa** | `PARAPHRASE_THRESHOLD` — wyższy = mniej fałszywych trafień, mniej wykrytych parafraz. |
+| **Podobieństwo (%)** | Udział słów *niewyłączonych* oznaczonych jako dopasowanie dokładne lub parafraza. |
+| **Udział źródła** | Słowa przypisane do danego źródła (każde słowo liczone raz — pierwszeństwo ma źródło z największym wkładem). |
+| **Wyłączone** | Cytaty w cudzysłowie, bibliografia, spis treści, opcjonalnie akty prawne — nie liczą się do podobieństwa ani do mianownika. |
+| **Burstiness** | Współczynnik zmienności długości zdań. Ludzie piszą zdania o bardzo różnej długości; LLM — bardziej jednolite. |
+| **Fraza-marker AI** | Zwrot nadreprezentowany w tekstach LLM (silne: „warto zauważyć”, „odgrywa kluczową rolę”; słabe: „ponadto”, „w kontekście”). |
+| **Sygnał** | Cecha przeskalowana do −1…+1 (+ = bardziej „AI”). Ważona suma + funkcja logistyczna = prawdopodobieństwo AI. |
+| **Fragment (chunk)** | ~250 słów (granice zdań/akapitów) oceniany osobno w detekcji AI. |
+| **Owner token** | Losowy identyfikator przeglądarki (localStorage) — historia bez kont użytkowników. |
+| **Baza wspólna** | Pliki referencyjne z `owner=''` (import przez `app.worker import-refs`), widoczne dla wszystkich. |
+| **Zadanie (job)** | Jedno sprawdzenie: `pending → running → done/error`. Tekst kasowany po zakończeniu, raport wygasa po TTL. |
+| **Zadanie „stale”** | `running` bez postępu > `JOB_STALE_MINUTES` — proces zginął; zadanie wraca do kolejki. |

@@ -1,0 +1,9 @@
+# Zależności produkcyjne — wyłącznie czysty Python (instalują się na FreeBSD/CT8 bez kompilacji).
+fastapi==0.115.6
+# pydantic v1 ma czysto-pythonowe koło; v2 wymaga kompilacji pydantic-core (Rust) na FreeBSD.
+pydantic>=1.10.18,<2
+python-multipart==0.0.20
+a2wsgi==1.10.8
+pypdf==5.1.0
+SQLAlchemy==2.0.36
+PyMySQL==1.1.1
