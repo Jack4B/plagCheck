@@ -217,8 +217,19 @@ def semantic_matches(
         i for i, stems in enumerate(index.sentence_stems)
         if doc.sentences[i].excluded is None and len(stems) >= 5 and i not in skip
     ]
-    src_idx = [j for j, stems in enumerate(source.sentence_stems) if len(stems) >= 4][:MAX_SOURCE_SENTENCES]
-    if not doc_idx or not src_idx:
+    if not doc_idx:
+        return {}
+    # Limit kosztu: przy długim źródle model liczy MAX_SOURCE_SENTENCES zdań z największą liczbą
+    # wspólnych rdzeni. Nic nie jest odrzucane z góry — czysta parafraza synonimiczna (0 wspólnych
+    # słów) w krótkim źródle nadal trafia do modelu.
+    doc_stems = {s for i in doc_idx for s in index.sentence_stems[i]}
+    scored = [
+        (len(doc_stems.intersection(stems)), j)
+        for j, stems in enumerate(source.sentence_stems) if len(stems) >= 4
+    ]
+    scored.sort(key=lambda t: -t[0])
+    src_idx = sorted(j for _, j in scored[:MAX_SOURCE_SENTENCES])
+    if not src_idx:
         return {}
     doc_vecs = index.sentence_vectors(encoder, doc_idx)
     src_texts = [" ".join(source_text[a:b].split()) for a, b in (source.sentence_spans[j] for j in src_idx)]

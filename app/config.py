@@ -64,6 +64,7 @@ class Settings:
     search_lang: str
     max_web_queries: int
     keyword_queries: int  # zapytania bez cudzysłowu (parafrazy) do darmowych źródeł
+    wikipedia_max_queries: int  # Wikipedia ma limit tempa (1/s) — osobny, mniejszy budżet
     keyword_queries_web: bool  # także do płatnej wyszukiwarki (zużywa limit API)
     max_pages_fetched: int
     search_cache_hours: int
@@ -116,6 +117,7 @@ def get_settings() -> Settings:
         search_lang=os.environ.get("SEARCH_LANG") or "pl",
         max_web_queries=_int("MAX_WEB_QUERIES", 25),
         keyword_queries=_int("KEYWORD_QUERIES", 15),
+        wikipedia_max_queries=_int("WIKIPEDIA_MAX_QUERIES", 40),
         keyword_queries_web=_bool("KEYWORD_QUERIES_WEB", False),
         max_pages_fetched=_int("MAX_PAGES_FETCHED", 12),
         search_cache_hours=_int("SEARCH_CACHE_HOURS", 24 * 7),

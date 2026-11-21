@@ -170,7 +170,24 @@ def test_host_throttle_spaces_wikipedia_requests(monkeypatch):
     for _ in range(3):
         throttle.wait("pl.wikipedia.org")
     throttle.wait("example.com")  # bez limitu
-    assert sleeps == [1.0, 2.0]
+    assert sleeps == [0.5, 1.0]
+
+
+def test_throttle_slows_down_on_429_and_recovers():
+    throttle = web_search._HostThrottle()
+    host = "pl.wikipedia.org"
+    assert throttle.interval(host) == 0.5
+    throttle.penalize(host)
+    throttle.penalize(host)
+    assert throttle.interval(host) == 2.0
+    for _ in range(4):
+        throttle.penalize(host)
+    assert throttle.interval(host) == web_search.MAX_INTERVAL
+    for _ in range(20 * 12):
+        throttle.reward(host)
+    assert throttle.interval(host) == 0.5  # wróciło do tempa bazowego
+    throttle.penalize("example.com")
+    assert throttle.interval("example.com") == 0.0  # hosty bez limitu nie są spowalniane
 
 
 def test_user_agent_contact_only_when_user_sets_it(monkeypatch):

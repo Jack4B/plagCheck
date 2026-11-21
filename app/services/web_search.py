@@ -30,7 +30,8 @@ from typing import Callable, Protocol
 USER_AGENT = "PlagCheck (self-hosted plagiarism self-check)"
 
 # Minimalny odstęp między żądaniami do jednego hosta (wspólny dla wyszukiwania i pobierania stron).
-HOST_INTERVALS = {"wikipedia.org": 1.0, "api.openalex.org": 0.15, "api.search.brave.com": 1.1}
+HOST_INTERVALS = {"wikipedia.org": 0.5, "api.openalex.org": 0.15, "api.search.brave.com": 1.1}
+MAX_INTERVAL = 4.0  # po kolejnych 429 odstęp rośnie ×2 do tej wartości
 RETRY_STATUSES = {429, 503}
 MAX_RETRIES = 3
 MAX_RETRY_WAIT = 30.0
@@ -53,13 +54,41 @@ class _HostThrottle:
     def __init__(self):
         self._lock = threading.Lock()
         self._next: dict[str, float] = {}
+        self._gap: dict[str, float] = {}  # bieżący (adaptacyjny) odstęp per host
+        self._ok: dict[str, int] = {}
 
     @staticmethod
-    def interval(host: str) -> float:
+    def base_interval(host: str) -> float:
         for suffix, value in HOST_INTERVALS.items():
             if host == suffix or host.endswith("." + suffix):
                 return value
         return 0.0
+
+    def interval(self, host: str) -> float:
+        return self._gap.get(host, self.base_interval(host))
+
+    def penalize(self, host: str) -> None:
+        """Serwer odpowiedział 429/503 — zwalniamy (AIMD: ×2, maks. MAX_INTERVAL)."""
+        base = self.base_interval(host)
+        if not base:
+            return
+        with self._lock:
+            self._gap[host] = min(MAX_INTERVAL, max(self.interval(host), base) * 2)
+            self._ok[host] = 0
+
+    def reward(self, host: str) -> None:
+        """Po 20 udanych żądaniach z rzędu przyspieszamy o 20%, nie poniżej odstępu bazowego."""
+        if host not in self._gap:
+            return
+        with self._lock:
+            self._ok[host] = self._ok.get(host, 0) + 1
+            if self._ok[host] >= 20:
+                self._ok[host] = 0
+                new = self._gap[host] * 0.8
+                if new <= self.base_interval(host):
+                    self._gap.pop(host, None)
+                else:
+                    self._gap[host] = new
 
     def wait(self, host: str) -> None:
         gap = self.interval(host)
@@ -171,8 +200,11 @@ def _get_json(url: str, headers: dict | None = None, timeout: float = 10.0, body
             data, _ = http_request(
                 url, method="POST" if raw_body else "GET", headers=hdrs, body=raw_body, timeout=timeout
             )
+            _throttle.reward(host or "")
             break
         except urllib.error.HTTPError as exc:
+            if exc.code in RETRY_STATUSES:
+                _throttle.penalize(host or "")
             if exc.code in RETRY_STATUSES and attempt < MAX_RETRIES:
                 # serwer prosi o zwolnienie — czekamy (Retry-After albo 2, 4, 8 s) i ponawiamy
                 retry_after = exc.headers.get("Retry-After") if exc.headers else None

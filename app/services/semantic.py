@@ -27,7 +27,8 @@ def is_model_dir(path) -> bool:
     import os
 
     return bool(path) and os.path.isfile(os.path.join(path, MODEL_FILE)) and os.path.isfile(os.path.join(path, CONFIG_FILE))
-MAX_SOURCE_SENTENCES = 2000
+MAX_SOURCE_SENTENCES = 300  # na źródło: najpierw zdania z największą liczbą wspólnych rdzeni
+SEMANTIC_MAX_SOURCES = 12   # model (drogi na telefonie) liczy tylko dla najlepiej rokujących źródeł
 
 
 class Encoder(Protocol):

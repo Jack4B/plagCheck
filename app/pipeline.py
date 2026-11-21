@@ -10,9 +10,10 @@ from urllib.parse import urlsplit
 from .config import Settings
 from .services.ai_detector import detect_ai
 from .services.fingerprints import kgram_hashes
-from .services.phrases import Phrase, generate_keyword_queries, generate_phrases
+from .services.phrases import Phrase, _spread, generate_keyword_queries, generate_phrases
 from .services.preprocessor import PreprocessOptions, preprocess
 from .services.report import SourceHit, build_report
+from .services.semantic import SEMANTIC_MAX_SOURCES
 from .services.similarity import DocumentIndex, compare
 from .services.textutils import fold
 from .services.web_search import CachedSearcher, SearchError
@@ -157,9 +158,15 @@ def run_analysis(
         url_hits: dict[str, dict] = {}
         plans = {}
         for s in searchers:
-            plan: list[tuple[str, int | None]] = [(p.query, k) for k, p in enumerate(phrases)]
-            if s.provider.name in KEYWORD_PROVIDERS or settings.keyword_queries_web:
-                plan += [(q.query, None) for q in keyword_queries]
+            exact = list(enumerate(phrases))
+            keywords = keyword_queries if (s.provider.name in KEYWORD_PROVIDERS or settings.keyword_queries_web) else []
+            if s.provider.name == "wikipedia":
+                # 1 zapytanie/s: budżet 60% fraz dokładnych, 40% słów kluczowych, równomiernie po tekście
+                cap = max(0, settings.wikipedia_max_queries)
+                exact = _spread(exact, round(cap * 0.6), lambda kp: kp[1].score)
+                keywords = _spread(list(keywords), cap - len(exact), lambda q: q.score)
+            plan: list[tuple[str, int | None]] = [(p.query, k) for k, p in exact]
+            plan += [(q.query, None) for q in keywords]
             plans[id(s)] = plan
         for searcher, k, results in _search_all(searchers, plans, progress, warnings):
             folded_phrase = fold(phrases[k].text) if k is not None else None
@@ -185,12 +192,14 @@ def run_analysis(
         with ThreadPoolExecutor(max_workers=4) as pool:
             pages = list(pool.map(lambda kv: kv[1]["provider"].fetch_text(kv[0]), ranked))
         for n, ((url, entry), page_text) in enumerate(zip(ranked, pages)):
-            progress(60 + int(10 * n / max(1, len(ranked))), "Porównanie ze źródłami z sieci")
+            progress(60 + int(25 * n / max(1, len(ranked))), f"Porównanie ze źródłami ({n + 1}/{len(ranked)})")
             if page_text:
                 search_info["pages_fetched"] += 1
             else:
                 page_text = "\n\n".join(dict.fromkeys(entry["snippets"]))  # zapas: snippety/abstrakty
-            result = compare(index, page_text, **compare_kw)
+            # model parafraz (kosztowny) tylko dla najlepiej rokujących stron — kolejność wg trafień
+            kw = compare_kw if n < SEMANTIC_MAX_SOURCES else {**compare_kw, "encoder": None}
+            result = compare(index, page_text, **kw)
             if result.is_empty:
                 continue
             sources.append(
@@ -207,7 +216,7 @@ def run_analysis(
 
     # ---------------------------------------------------------- baza lokalna
     if options["local"] and references is not None:
-        progress(72, "Porównanie z bazą lokalną")
+        progress(86, "Porównanie z bazą lokalną")
         if hasattr(references, "load"):
             doc_hashes = set(kgram_hashes([t.folded for t in doc.tokens]))
             refs, mode = references.load(doc_hashes)
@@ -216,7 +225,8 @@ def run_analysis(
         checked = 0
         for ref in refs:
             checked += 1
-            result = compare(index, ref["text"], **compare_kw)
+            kw = compare_kw if checked <= SEMANTIC_MAX_SOURCES else {**compare_kw, "encoder": None}
+            result = compare(index, ref["text"], **kw)
             if not result.is_empty:
                 sources.append(
                     SourceHit(len(sources) + 1, "local", ref["name"], None, result.exact_tokens,
@@ -233,7 +243,7 @@ def run_analysis(
     # --------------------------------------------------------------- AI
     ai = None
     if options["ai"]:
-        progress(88, "Analiza cech tekstu AI")
+        progress(92, "Analiza cech tekstu AI")
         ai = detect_ai(doc)
 
     progress(95, "Generowanie raportu")

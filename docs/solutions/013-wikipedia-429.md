@@ -16,3 +16,22 @@ klienty mocniej).
 
 **Koszt.** Preset maksymalny trwa dłużej (Wikipedia ~1 zapytanie/s → ok. 2–3 min na samo
 wyszukiwanie w Wikipedii); źródła są przeszukiwane równolegle, więc OpenAlex nie czeka.
+
+## v1.4.2 — szybkość na telefonie
+
+Pomiar (praca 1 500 słów, 24 pobrane strony, preset maksymalny): główny koszt to **model
+parafraz w numpy** (~31 zdań/s), nie tylko Wikipedia.
+- GELU: przybliżenie tanh zamiast erf (Abramowitz–Stegun) — 5,6× szybsze, błąd < 5e-4;
+  `erf` zajmował 41% czasu modelu.
+- Model liczy tylko dla 12 najlepiej rokujących źródeł (kolejność wg trafień) i maks. 300 zdań
+  na źródło, wybranych wg liczby wspólnych rdzeni. Nic nie jest odrzucane z góry — czysta
+  parafraza synonimiczna w krótkim źródle nadal trafia do modelu (pierwsza wersja sita z progiem
+  „≥ 2 wspólne rdzenie” blokowała właśnie takie przypadki — wyłapały to testy).
+  Zdań przez model: ~5 800 → 3 041.
+- Wikipedia: osobny budżet (WIKIPEDIA_MAX_QUERIES=40: 60% fraz dokładnych, 40% słów kluczowych)
+  i adaptacyjne tempo AIMD: start 0,5 s, po 429 ×2 (maks. 4 s), po 20 udanych −20%.
+
+**Odrzucone: darmowe publiczne proxy do obchodzenia limitu Wikipedii.** Łamie zasady Wikimedia
+(limity służą ochronie ich serwerów, grozi blokada), otwarte proxy to często przejęte urządzenia
+i punkty podsłuchu (przez nie szłyby frazy z pracy), większość jest martwa lub wolna — analiza
+byłaby wolniejsza i mniej przewidywalna. Więcej źródeł legalnie: klucz Brave/Serper/SerpAPI.

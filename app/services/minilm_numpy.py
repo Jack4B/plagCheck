@@ -93,17 +93,24 @@ class UnigramTokenizer:
 # --------------------------------------------------------------------- model
 
 
-def _erf(x: np.ndarray) -> np.ndarray:
-    # Abramowitz & Stegun 7.1.26, błąd < 1.5e-7 — numpy nie ma erf, a GELU go wymaga
-    sign = np.sign(x)
-    x = np.abs(x)
-    t = 1.0 / (1.0 + 0.3275911 * x)
-    y = 1.0 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * np.exp(-x * x)
-    return sign * y
+_GELU_C = np.float32(math.sqrt(2.0 / math.pi))
 
 
 def _gelu(x: np.ndarray) -> np.ndarray:
-    return 0.5 * x * (1.0 + _erf(x / math.sqrt(2.0)))
+    """GELU, przybliżenie tanh (jak w GPT-2/BERT-tf): 5–6× szybsze niż erf, błąd < 5e-4.
+
+    Liczone w miejscu na kopii roboczej — bez dużych tablic pośrednich (ważne na telefonie).
+    """
+    y = x * x
+    y *= np.float32(0.044715)
+    y += np.float32(1.0)
+    y *= x
+    y *= _GELU_C
+    np.tanh(y, out=y)
+    y += np.float32(1.0)
+    y *= x
+    y *= np.float32(0.5)
+    return y
 
 
 def _layer_norm(x: np.ndarray, w: np.ndarray, b: np.ndarray, eps: float) -> np.ndarray:

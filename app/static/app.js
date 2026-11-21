@@ -37,6 +37,8 @@ function h(tag, attrs = {}, ...children) {
 // replaceChildren zamienia null na tekst "null" — filtrujemy puste dzieci.
 const fill = (el, ...kids) => el.replaceChildren(...kids.flat().filter((k) => k !== null && k !== undefined && k !== false));
 const shareText = (s) => (s.percent === 0 && s.matched_words > 0 ? "pokrywa się z innymi źródłami" : `${s.percent}%`);
+// 72 → „3 dniach”, 8760 → „365 dniach”, 12 → „12 godzinach”
+const ttlText = (h) => (h % 24 === 0 ? (h === 24 ? "1 dniu" : `${h / 24} dniach`) : `${h} godzinach`);
 const fmtDate = (iso) => (iso ? new Date(iso).toLocaleString("pl-PL", { dateStyle: "short", timeStyle: "short" }) : "");
 const SOURCE_NAMES = { brave: "Brave Search", serper: "Google (Serper)", serpapi: "Google (SerpAPI)", wikipedia: "Wikipedia", openalex: "OpenAlex (publikacje naukowe)" };
 const KIND_LABELS = { web: "internet", wikipedia: "wikipedia", scholar: "publikacja naukowa", local: "baza lokalna" };
@@ -432,7 +434,7 @@ async function exportHtml(job) {
 // --------------------------------------------------------------------- historia
 async function renderHistory() {
   const card = h("section", { class: "card" }, h("p", { class: "muted" }, "Wczytywanie…"));
-  view.append(h("h1", {}, "Historia sprawdzeń"), h("p", { class: "muted" }, `Historia jest powiązana z tą przeglądarką. Raporty są usuwane automatycznie po ${health?.report_ttl_hours ?? 72} h.`), card);
+  view.append(h("h1", {}, "Historia sprawdzeń"), h("p", { class: "muted" }, `Historia jest powiązana z tą przeglądarką. Raporty są usuwane automatycznie po ${ttlText(health?.report_ttl_hours ?? 72)}.`), card);
   try {
     const { jobs } = await api("/api/jobs");
     if (!jobs.length) {
@@ -515,6 +517,7 @@ const SETTINGS_FORM = [
   ["Zakres wyszukiwania", "Więcej zapytań = wyższa skuteczność, ale dłuższa analiza i większe zużycie limitu płatnego API.", [
     ["MAX_WEB_QUERIES", "int", "Frazy dokładne na źródło"],
     ["KEYWORD_QUERIES", "int", "Zapytania słowami kluczowymi (wykrywają parafrazy)"],
+    ["WIKIPEDIA_MAX_QUERIES", "int", "Limit zapytań do Wikipedii (1 na sekundę)"],
     ["KEYWORD_QUERIES_WEB", "bool", "Słowa kluczowe także do płatnej wyszukiwarki"],
     ["MAX_PAGES_FETCHED", "int", "Maks. stron pobieranych do porównania"],
   ]],
