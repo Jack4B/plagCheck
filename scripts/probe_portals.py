@@ -62,8 +62,8 @@ def article_links(home: str, html: str, n: int) -> list[str]:
         if parts.scheme != "https" or not parts.hostname or not parts.hostname.endswith(domain):
             continue
         path = parts.path
-        last = path.rstrip("/").rsplit("/", 1)[-1]
-        if (len(path) < 30 or last.count("-") < 3 or url in out or ASSET_RE.search(path)
+        titled = any(seg.count("-") >= 3 for seg in path.split("/"))  # segment z tytułem artykułu
+        if (len(path) < 30 or not titled or url in out or ASSET_RE.search(path)
                 or any(seg in path for seg in ("/fonts/", "/favicon", "/images/", "/_i/", "/media/", "/static/"))):
             continue
         out.append(url.split("?")[0])
