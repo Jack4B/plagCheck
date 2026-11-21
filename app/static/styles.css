@@ -247,3 +247,19 @@ dialog input { margin: 8px 0 14px; }
 .setting { display: grid; gap: 6px; margin-top: 10px; }
 .setting .row input { flex: 1; min-width: 0; }
 .settings-group .option { margin-top: 10px; }
+
+/* Historia: lista kart (czytelna i z przyciskami także na telefonie) */
+.history { list-style: none; margin: 0; padding: 0; }
+.history-tools { margin-bottom: 8px; }
+.history-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.history-item:last-child { border-bottom: none; }
+.history-main { flex: 1; min-width: 0; color: var(--text); text-decoration: none; display: grid; gap: 4px; }
+.history-main:hover .history-name { color: var(--primary); }
+.history-name { overflow-wrap: anywhere; }
+.history-meta { font-size: 13px; color: var(--muted); }
+.history-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.badge.cancelled { color: var(--warn); }
+@media (max-width: 600px) {
+  .history-item { flex-direction: column; align-items: stretch; }
+  .history-actions { justify-content: flex-end; }
+}

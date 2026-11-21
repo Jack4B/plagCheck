@@ -230,6 +230,19 @@ def job_export(job_id: str, owner: str = Depends(owner_token)):
     )
 
 
+@app.post("/api/jobs/{job_id}/cancel", dependencies=[Depends(require_access)])
+def cancel_job(job_id: str, owner: str = Depends(owner_token)):
+    if not db.cancel_job(job_id, owner):
+        raise HTTPException(409, "Tego sprawdzenia nie da się zatrzymać (już zakończone albo nie istnieje).")
+    return {"cancelled": True}
+
+
+@app.post("/api/jobs/cleanup", dependencies=[Depends(require_access)])
+def cleanup_jobs(owner: str = Depends(owner_token)):
+    """Usuwa zatrzymane i nieudane sprawdzenia."""
+    return {"deleted": db.delete_jobs_with_status(owner, ("cancelled", "error"))}
+
+
 @app.delete("/api/jobs/{job_id}", dependencies=[Depends(require_access)])
 def remove_job(job_id: str, owner: str = Depends(owner_token)):
     if not db.delete_job(job_id, owner):

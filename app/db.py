@@ -174,20 +174,22 @@ def claim_job(job_id: str) -> dict | None:
         return dict(row) if row else None
 
 
-def set_progress(job_id: str, progress: int, stage: str) -> None:
+def set_progress(job_id: str, progress: int, stage: str) -> bool:
+    """Zapisuje postęp. Zwraca False, gdy zadanie zatrzymano lub usunięto — analiza ma się przerwać."""
     with get_engine().begin() as conn:
-        conn.execute(
+        res = conn.execute(
             update(jobs)
-            .where(jobs.c.id == job_id)
+            .where(and_(jobs.c.id == job_id, jobs.c.status == "running"))
             .values(progress=progress, stage=stage[:128], updated_at=utcnow())
         )
+        return res.rowcount == 1
 
 
-def finish_job(job_id: str, report: dict, summary: dict) -> None:
+def finish_job(job_id: str, report: dict, summary: dict) -> bool:
     with get_engine().begin() as conn:
-        conn.execute(
+        res = conn.execute(
             update(jobs)
-            .where(jobs.c.id == job_id)
+            .where(and_(jobs.c.id == job_id, jobs.c.status == "running"))
             .values(
                 status="done",
                 progress=100,
@@ -198,15 +200,34 @@ def finish_job(job_id: str, report: dict, summary: dict) -> None:
                 updated_at=utcnow(),
             )
         )
+        return res.rowcount == 1
 
 
 def fail_job(job_id: str, message: str) -> None:
     with get_engine().begin() as conn:
         conn.execute(
             update(jobs)
-            .where(jobs.c.id == job_id)
+            .where(and_(jobs.c.id == job_id, jobs.c.status == "running"))
             .values(status="error", stage="Błąd", error=message[:2000], text=None, updated_at=utcnow())
         )
+
+
+def cancel_job(job_id: str, owner: str) -> bool:
+    """Zatrzymuje zadanie w kolejce lub w toku (wątek analizy przerwie się przy najbliższym kroku)."""
+    with get_engine().begin() as conn:
+        res = conn.execute(
+            update(jobs)
+            .where(and_(jobs.c.id == job_id, jobs.c.owner == owner, jobs.c.status.in_(("pending", "running"))))
+            .values(status="cancelled", stage="Zatrzymano", text=None, updated_at=utcnow())
+        )
+        return res.rowcount == 1
+
+
+def delete_jobs_with_status(owner: str, statuses: tuple[str, ...]) -> int:
+    with get_engine().begin() as conn:
+        return conn.execute(
+            delete(jobs).where(and_(jobs.c.owner == owner, jobs.c.status.in_(statuses)))
+        ).rowcount
 
 
 def get_job(job_id: str, owner: str | None = None, with_report: bool = False) -> dict | None:

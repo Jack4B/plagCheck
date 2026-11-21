@@ -22,6 +22,17 @@ from .services.web_search import CachedSearcher, build_providers
 
 log = logging.getLogger("plagcheck.jobs")
 
+
+class JobCancelled(Exception):
+    """Zadanie zatrzymane lub usunięte przez użytkownika w trakcie analizy."""
+
+
+def _progress(job_id: str):
+    def report(progress: int, stage: str) -> None:
+        if not db.set_progress(job_id, progress, stage):
+            raise JobCancelled(job_id)
+    return report
+
 # Liczba równoległych analiz: 2 na CT8 (RAM), więcej na Oracle (MAX_CONCURRENT_JOBS).
 _slots = threading.BoundedSemaphore(get_settings().max_concurrent_jobs)
 
@@ -76,9 +87,12 @@ def run_job(job_id: str) -> bool:
                 searchers=make_searchers(settings) if options.get("web", True) else [],
                 references=DbReferenceSource(job["owner"], settings) if options.get("local", True) else None,
                 encoder=encoder_factory(settings),
-                progress=lambda p, s: db.set_progress(job_id, p, s),
+                progress=_progress(job_id),
             )
             db.finish_job(job_id, report, summarize(report))
+            return True
+        except JobCancelled:
+            log.info("job %s zatrzymany przez użytkownika", job_id)
             return True
         except Exception as exc:  # zadanie nie może wywrócić procesu
             log.exception("job %s failed", job_id)

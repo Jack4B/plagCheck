@@ -67,10 +67,13 @@ def _search_all(
     total = max(1, sum(len(plans[id(s)]) for s in searchers))
     done = [0]
     lock = threading.Lock()
+    stop = threading.Event()  # zatrzymanie zadania (wyjątek z progress) przerywa wszystkie źródła
 
     def run(searcher: CachedSearcher):
         found, errors = [], 0
         for k, (query, phrase_idx) in enumerate(plans[id(searcher)]):
+            if stop.is_set():
+                break
             try:
                 found.append((searcher, phrase_idx, searcher.search(query)))
             except SearchError as exc:
@@ -83,7 +86,11 @@ def _search_all(
             finally:
                 with lock:
                     done[0] += 1
-                    progress(10 + int(45 * done[0] / total), f"Wyszukiwanie fraz ({done[0]}/{total})")
+                    try:
+                        progress(10 + int(45 * done[0] / total), f"Wyszukiwanie fraz ({done[0]}/{total})")
+                    except Exception:
+                        stop.set()
+                        raise
         return found
 
     with ThreadPoolExecutor(max_workers=len(searchers)) as pool:

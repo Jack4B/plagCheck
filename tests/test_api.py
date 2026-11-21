@@ -285,3 +285,60 @@ def test_worker_backup_creates_consistent_copy(tmp_path, client):
     assert worker.main(["backup", str(target)]) == 0
     rows = sqlite3.connect(target).execute("SELECT name FROM reference_docs").fetchall()
     assert rows == [("a.txt",)]
+
+
+# ------------------------------------------------------------- zatrzymywanie zadań
+
+
+def test_cancel_pending_job_is_never_run(client, fake_provider):
+    job_id = submit_docx(client, STUDENT_WITH_COPY.split("\n\n"))
+    assert client.post(f"/api/jobs/{job_id}/cancel", headers=OWNER).json() == {"cancelled": True}
+    assert jobs.process_pending() == 0
+    status = client.get(f"/api/jobs/{job_id}", headers=OWNER).json()
+    assert status["status"] == "cancelled" and fake_provider.queries == []
+    assert client.post(f"/api/jobs/{job_id}/cancel", headers=OWNER).status_code == 409
+
+
+def test_cancel_running_job_stops_analysis(client, monkeypatch):
+    import threading
+    import time
+
+    started, release = threading.Event(), threading.Event()
+
+    class SlowProvider(FakeProvider):
+        def search(self, query):
+            started.set()
+            release.wait(5)
+            return super().search(query)
+
+    provider = SlowProvider()
+    monkeypatch.setattr(jobs, "providers_factory", lambda settings: [provider])
+    monkeypatch.setenv("WORKER_MODE", "thread")
+    job_id = submit_docx(client, STUDENT_WITH_COPY.split("\n\n"))
+    assert started.wait(5)
+    assert client.post(f"/api/jobs/{job_id}/cancel", headers=OWNER).json() == {"cancelled": True}
+    release.set()
+    for _ in range(50):
+        if not any(t.name.startswith("job-") for t in threading.enumerate()):
+            break
+        time.sleep(0.1)
+    status = client.get(f"/api/jobs/{job_id}", headers=OWNER).json()
+    assert status["status"] == "cancelled"  # nie nadpisane przez „done”/„error”
+    assert len(provider.queries) <= 2  # przerwane po bieżącym zapytaniu, nie po wszystkich
+    assert client.get(f"/api/jobs/{job_id}/report", headers=OWNER).status_code == 409
+
+
+def test_cleanup_removes_cancelled_and_failed_only(client, fake_provider):
+    from sqlalchemy import update
+
+    from app import db
+
+    done_id = submit_docx(client, ["Tekst " * 30])
+    jobs.process_pending()
+    cancelled_id = submit_docx(client, ["Inny tekst " * 30])
+    client.post(f"/api/jobs/{cancelled_id}/cancel", headers=OWNER)
+    failed_id = submit_docx(client, ["Trzeci tekst " * 30])
+    with db.get_engine().begin() as conn:
+        conn.execute(update(db.jobs).where(db.jobs.c.id == failed_id).values(status="error"))
+    assert client.post("/api/jobs/cleanup", headers=OWNER).json() == {"deleted": 2}
+    assert [j["id"] for j in client.get("/api/jobs", headers=OWNER).json()["jobs"]] == [done_id]

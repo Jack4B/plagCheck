@@ -202,8 +202,17 @@ async function renderJob(id) {
       h("div", { class: "progress", role: "progressbar", "aria-valuenow": job.progress, "aria-valuemin": 0, "aria-valuemax": 100 }, bar),
       h("p", { class: "muted" }, `${job.stage} · ${job.progress}%`),
       h("p", { class: "muted small" }, "Analiza dokumentu 20–40 stron trwa zwykle 1–5 minut. Możesz zamknąć tę kartę — wynik znajdziesz w historii."),
+      h("div", { class: "row end" }, h("button", { class: "btn sm danger", onclick: () => stopJob(job, () => route()) }, "Zatrzymaj")),
     );
     pollTimer = setTimeout(() => { if (location.hash === `#/job/${id}`) { view.replaceChildren(); renderJob(id); } }, 1500);
+    return;
+  }
+  if (job.status === "cancelled") {
+    box.replaceChildren(h("h1", {}, job.filename),
+      h("div", { class: "alert warn" }, "Sprawdzanie zostało zatrzymane."),
+      h("div", { class: "row", style: { marginTop: "12px" } },
+        h("a", { class: "btn sm primary", href: "#/" }, "Nowe sprawdzenie"),
+        h("button", { class: "btn sm danger", onclick: () => deleteJob(job, () => { location.hash = "#/history"; }) }, "Usuń")));
     return;
   }
   if (job.status === "error") {
@@ -432,31 +441,55 @@ async function exportHtml(job) {
 }
 
 // --------------------------------------------------------------------- historia
+const STATUS_LABELS = { pending: "w kolejce", done: "gotowe", error: "błąd", cancelled: "zatrzymano" };
+
+async function stopJob(job, after) {
+  if (!confirm(`Zatrzymać sprawdzanie „${job.filename}”?`)) return;
+  try { await api(`/api/jobs/${job.id}/cancel`, { method: "POST" }); } catch (e) { alert(e.message); }
+  after();
+}
+
+async function deleteJob(job, after) {
+  if (!confirm(`Usunąć „${job.filename}”?`)) return;
+  try { await api(`/api/jobs/${job.id}`, { method: "DELETE" }); } catch (e) { alert(e.message); }
+  after();
+}
+
 async function renderHistory() {
   const card = h("section", { class: "card" }, h("p", { class: "muted" }, "Wczytywanie…"));
-  view.append(h("h1", {}, "Historia sprawdzeń"), h("p", { class: "muted" }, `Historia jest powiązana z tą przeglądarką. Raporty są usuwane automatycznie po ${ttlText(health?.report_ttl_hours ?? 72)}.`), card);
+  view.append(h("h1", {}, "Historia sprawdzeń"), h("p", { class: "muted" }, `${health?.mobile ? "Historia jest zapisana w tym telefonie." : "Historia jest powiązana z tą przeglądarką."} Raporty są usuwane automatycznie po ${ttlText(health?.report_ttl_hours ?? 72)}.`), card);
   try {
     const { jobs } = await api("/api/jobs");
     if (!jobs.length) {
       card.replaceChildren(h("div", { class: "empty" }, "Brak sprawdzeń. ", h("a", { href: "#/" }, "Sprawdź pierwszy dokument")));
       return;
     }
-    card.replaceChildren(h("div", { class: "table-wrap" }, h("table", { class: "list" },
-      h("thead", {}, h("tr", {}, ["Dokument", "Status", "Podobieństwo", "AI", "Data", ""].map((t) => h("th", {}, t)))),
-      h("tbody", {}, jobs.map((j) => h("tr", { class: "clickable", onclick: () => { location.hash = `#/job/${j.id}`; } },
-        h("td", {}, h("b", {}, j.filename)),
-        h("td", {}, h("span", { class: `badge ${j.status}` }, { pending: "w kolejce", running: `${j.progress}%`, done: "gotowe", error: "błąd" }[j.status])),
-        h("td", {}, j.summary ? `${j.summary.similarity}%` : "—"),
-        h("td", {}, j.summary && j.summary.ai != null ? `${j.summary.ai}%` : "—"),
-        h("td", { class: "muted small" }, fmtDate(j.created_at)),
-        h("td", {}, h("button", { class: "btn sm danger", onclick: async (e) => {
-          e.stopPropagation();
-          if (!confirm(`Usunąć „${j.filename}”?`)) return;
-          await api(`/api/jobs/${j.id}`, { method: "DELETE" });
-          route();
-        } }, "Usuń")),
-      ))),
-    )));
+    const stale = jobs.filter((j) => j.status === "cancelled" || j.status === "error").length;
+    const active = jobs.some((j) => j.status === "pending" || j.status === "running");
+    const toolbar = stale ? h("div", { class: "row end history-tools" }, h("button", { class: "btn sm", onclick: async () => {
+      if (!confirm(`Usunąć zatrzymane i nieudane sprawdzenia (${stale})?`)) return;
+      await api("/api/jobs/cleanup", { method: "POST" });
+      route();
+    } }, `Usuń zatrzymane i nieudane (${stale})`)) : null;
+    // Lista kart zamiast tabeli: na telefonie przyciski są zawsze widoczne.
+    const list = h("ul", { class: "history" }, jobs.map((j) => {
+      const running = j.status === "pending" || j.status === "running";
+      const stop = (e) => { e.stopPropagation(); stopJob(j, route); };
+      const del = (e) => { e.stopPropagation(); deleteJob(j, route); };
+      return h("li", { class: "history-item" },
+        h("a", { class: "history-main", href: `#/job/${j.id}` },
+          h("b", { class: "history-name" }, j.filename),
+          h("span", { class: "history-meta" },
+            h("span", { class: `badge ${j.status}` }, j.status === "running" ? `${j.progress}%` : STATUS_LABELS[j.status] || j.status),
+            j.summary ? ` podobieństwo ${j.summary.similarity}%` : "",
+            j.summary && j.summary.ai != null ? ` · AI ${j.summary.ai}%` : "",
+            h("span", { class: "muted" }, ` · ${fmtDate(j.created_at)}`))),
+        h("div", { class: "history-actions" },
+          running ? h("button", { class: "btn sm", onclick: stop }, "Zatrzymaj") : null,
+          h("button", { class: "btn sm danger", onclick: del }, "Usuń")));
+    }));
+    card.replaceChildren(...[toolbar, list].filter(Boolean));
+    if (active) pollTimer = setTimeout(() => { if (location.hash === "#/history") route(); }, 3000);
   } catch (e) { card.replaceChildren(h("div", { class: "alert error" }, e.message)); }
 }
 
