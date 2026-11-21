@@ -75,9 +75,32 @@ jobs:
         with:
           gradle-version: "8.11.1"
 
+      - name: Klucz podpisu z sekretów repozytorium
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            printf '%s' "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+            echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+            echo "Podpis: klucz z sekretu ANDROID_KEYSTORE_BASE64"
+          else
+            echo "::warning::Brak sekretu ANDROID_KEYSTORE_BASE64 — APK podpisany publicznym kluczem testowym z repozytorium."
+          fi
+
       - name: Budowa APK
         working-directory: mobile/android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: gradle assembleRelease --stacktrace
+
+      - name: Odcisk certyfikatu podpisu (do weryfikacji)
+        run: |
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -n1)
+          "$APKSIGNER" verify --print-certs mobile/android/app/build/outputs/apk/release/app-release.apk | tee signer.txt
+          { echo "### Podpis APK"; echo '```'; grep -E "SHA-256|DN" signer.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          rm -f "$RUNNER_TEMP/release.keystore"
 
       - name: Nazwa pliku
         id: apk

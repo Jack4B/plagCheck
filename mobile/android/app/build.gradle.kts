@@ -24,14 +24,24 @@ android {
         ndk { abiFilters += listOf("arm64-v8a") }
     }
 
-    // Stały klucz do instalacji z pliku (sideload): każda kompilacja ma ten sam podpis,
-    // więc nowa wersja instaluje się na starszą bez utraty danych. Nie dla Sklepu Play.
+    // Podpis: klucz z sekretów GitHuba (ANDROID_KEYSTORE_FILE + hasła w zmiennych środowiskowych,
+    // ustawia workflow). Bez sekretów — zapasowo publiczny klucz z repozytorium (tylko do testów:
+    // jest jawny, więc nie chroni przed podrobionymi aktualizacjami).
     signingConfigs {
         create("sideload") {
-            storeFile = file("plagcheck-sideload.keystore")
-            storePassword = "plagcheck-sideload"
-            keyAlias = "plagcheck"
-            keyPassword = "plagcheck-sideload"
+            val secretKeystore = System.getenv("ANDROID_KEYSTORE_FILE")?.let { file(it) }
+            if (secretKeystore != null && secretKeystore.isFile) {
+                storeFile = secretKeystore
+                storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("ANDROID_KEY_ALIAS")?.takeIf { it.isNotBlank() } ?: "plagcheck"
+                keyPassword = System.getenv("ANDROID_KEY_PASSWORD")?.takeIf { it.isNotBlank() }
+                    ?: System.getenv("ANDROID_KEYSTORE_PASSWORD")
+            } else {
+                storeFile = file("plagcheck-sideload.keystore")
+                storePassword = "plagcheck-sideload"
+                keyAlias = "plagcheck"
+                keyPassword = "plagcheck-sideload"
+            }
         }
     }
     buildTypes {

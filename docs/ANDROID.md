@@ -80,7 +80,12 @@ adresie 127.0.0.1 — inne urządzenia w sieci Wi-Fi nie mają do niego dostępu
   (tokenizacja ≥ 98% zgodna, cosinus z oryginałem ≥ 0,99) — CI pada, gdy weryfikacja nie przejdzie.
 - Nowa wersja dla Obtainium = podbicie `__version__` w `app/__init__.py`; workflow tworzy wtedy
   release `v<wersja>` z APK (dla tej samej wersji release nie jest nadpisywany).
-- Klucz podpisu `mobile/android/app/plagcheck-sideload.keystore` jest w repozytorium (stały podpis
+- **Własny klucz podpisu (zalecane):** sekrety repozytorium `ANDROID_KEYSTORE_BASE64`,
+  `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` (opcjonalnie, domyślnie `plagcheck`),
+  `ANDROID_KEY_PASSWORD` (opcjonalnie, domyślnie jak hasło magazynu). Workflow dekoduje klucz
+  tylko na czas budowy i wypisuje odcisk SHA-256 certyfikatu w podsumowaniu uruchomienia.
+  Bez sekretów używany jest klucz testowy opisany niżej.
+- Klucz testowy `mobile/android/app/plagcheck-sideload.keystore` jest w repozytorium (stały podpis
   dla aktualizacji bez sekretów na GitHubie). **Repozytorium jest publiczne**, więc ktoś inny
   mógłby podpisać tym kluczem własny APK — Android uznałby go za aktualizację PlagCheck.
   Dopóki instalujesz wyłącznie przez Obtainium z tego repozytorium albo z artefaktów jego Actions,
