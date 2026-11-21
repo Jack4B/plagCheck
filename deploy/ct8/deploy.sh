@@ -16,7 +16,7 @@ SERVER="${2:?Podaj serwer SSH, np. s1.ct8.pl}"
 DOMAIN="${3:-$LOGIN.ct8.pl}"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 
-"$ROOT/scripts/build_package.sh"
+"$ROOT/scripts/build_package.sh" ct8
 PKG="$(ls -t "$ROOT"/dist/plagcheck-ct8-*.tar.gz | head -n1)"
 NAME="$(basename "$PKG" .tar.gz)"
 

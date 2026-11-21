@@ -1,0 +1,12 @@
+# Caddy — reverse proxy z automatycznym certyfikatem Let's Encrypt dla $DOMAIN.
+{$DOMAIN} {
+	encode zstd gzip
+	request_body {
+		max_size 25MB
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+	reverse_proxy plagcheck:8000
+}

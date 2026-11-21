@@ -32,11 +32,27 @@ Konfiguracja: skopiuj `.env.example` → `.env` (klucze API wyszukiwarek, limity
 
 ## Dwa profile (szczegóły: [docs/KONCEPCJA.md](docs/KONCEPCJA.md))
 
-| | **lite** — CT8 | **full** — Docker / VPS |
+| | **full** — Oracle Cloud (zalecane) | **lite** — CT8 |
 |---|---|---|
-| RAM | ~60–100 MB | ~1–1,5 GB |
-| Parafrazy synonimiczne | — | ✔ |
-| Wdrożenie | [docs/DEPLOY_CT8.md](docs/DEPLOY_CT8.md) | [docs/DEPLOY_DOCKER.md](docs/DEPLOY_DOCKER.md) |
+| RAM | ~1–1,5 GB | ~60–100 MB |
+| Parafrazy synonimiczne | ✔ | — |
+| HTTPS | Caddy (automatycznie) | panel CT8 |
+| Wdrożenie | [docs/DEPLOY_ORACLE.md](docs/DEPLOY_ORACLE.md) | [docs/DEPLOY_CT8.md](docs/DEPLOY_CT8.md) |
+
+## Wdrożenie na Oracle Cloud Always Free (zalecane)
+
+Najpierw w konsoli Oracle: maszyna Ampere A1 (Ubuntu 24.04) i reguły Ingress 80/443 —
+krok po kroku w **[docs/DEPLOY_ORACLE.md](docs/DEPLOY_ORACLE.md)**. Potem jedno polecenie:
+
+```bash
+SSH_KEY=~/.ssh/oracle.key ./deploy/oracle/deploy.sh IP_SERWERA [--domain plagiat.mojadomena.pl]
+```
+
+albo z gotowej paczki (`./scripts/build_package.sh oracle`):
+
+```bash
+scp -i ~/.ssh/oracle.key plagcheck-oracle-1.2.0.tar.gz ubuntu@IP: && ssh -t -i ~/.ssh/oracle.key ubuntu@IP 'tar -xzf plagcheck-oracle-1.2.0.tar.gz && sudo bash plagcheck-oracle-1.2.0/setup.sh'
+```
 
 ## Wdrożenie na CT8 (lite)
 
@@ -44,19 +60,17 @@ Konfiguracja: skopiuj `.env.example` → `.env` (klucze API wyszukiwarek, limity
 ./deploy/ct8/deploy.sh LOGIN sN.ct8.pl [DOMENA]     # buduje paczkę, wysyła scp, instaluje przez ssh
 ```
 
-albo ręcznie z gotowej paczki (`./scripts/build_package.sh` → `dist/plagcheck-ct8-1.1.0.tar.gz`):
+albo ręcznie z gotowej paczki (`./scripts/build_package.sh ct8` → `dist/plagcheck-ct8-1.2.0.tar.gz`):
 
 ```bash
-scp dist/plagcheck-ct8-1.1.0.tar.gz LOGIN@sN.ct8.pl: && ssh -t LOGIN@sN.ct8.pl 'tar -xzf plagcheck-ct8-1.1.0.tar.gz && bash plagcheck-ct8-1.1.0/install.sh LOGIN.ct8.pl'
+scp dist/plagcheck-ct8-1.2.0.tar.gz LOGIN@sN.ct8.pl: && ssh -t LOGIN@sN.ct8.pl 'tar -xzf plagcheck-ct8-1.2.0.tar.gz && bash plagcheck-ct8-1.2.0/install.sh LOGIN.ct8.pl'
 ```
 
 Szczegóły, MySQL, HTTPS, diagnostyka: **[docs/DEPLOY_CT8.md](docs/DEPLOY_CT8.md)**.
 
-## Wdrożenie Docker (full)
+## Inny VPS z Dockerem
 
-```bash
-cp .env.example .env && docker compose up -d --build    # http://127.0.0.1:8000
-```
+Ten sam `setup.sh` działa na każdym Ubuntu/Debian/Oracle Linux — patrz [docs/DEPLOY_DOCKER.md](docs/DEPLOY_DOCKER.md).
 
 ## Architektura
 

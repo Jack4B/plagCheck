@@ -3,6 +3,7 @@
   python -m app.worker run            # wykonaj zaległe zadania (+ sprzątanie)
   python -m app.worker cleanup        # usuń wygasłe raporty i cache
   python -m app.worker reindex        # zbuduj brakujące odciski bazy lokalnej
+  python -m app.worker backup PLIK    # spójna kopia bazy SQLite
   python -m app.worker import-refs DIR [--owner TOKEN]
                                       # dodaj pliki z katalogu do bazy lokalnej
                                       # (bez --owner: baza wspólna dla wszystkich)
@@ -56,6 +57,26 @@ def cmd_reindex(args) -> int:
     return 0
 
 
+def cmd_backup(args) -> int:
+    """Spójna kopia bazy SQLite (API backup — bezpieczne przy działającej aplikacji)."""
+    import sqlite3
+
+    url = get_settings().database_url
+    if not url.startswith("sqlite:///"):
+        print("Kopia dotyczy tylko SQLite — dla MySQL użyj mysqldump.")
+        return 1
+    target = Path(args.target)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    src = sqlite3.connect(url[len("sqlite:///"):])
+    dst = sqlite3.connect(target)
+    with dst:
+        src.backup(dst)
+    src.close()
+    dst.close()
+    print(f"Kopia zapisana: {target} ({target.stat().st_size // 1024} KB)")
+    return 0
+
+
 def cmd_import_refs(args) -> int:
     from .services.extractor import SUPPORTED_EXTENSIONS, ExtractionError, extract_text
 
@@ -83,6 +104,9 @@ def main(argv=None) -> int:
     sub.add_parser("run").set_defaults(func=cmd_run)
     sub.add_parser("cleanup").set_defaults(func=cmd_cleanup)
     sub.add_parser("reindex").set_defaults(func=cmd_reindex)
+    bak = sub.add_parser("backup")
+    bak.add_argument("target", help="ścieżka pliku kopii, np. /backup/plagcheck-2026-11-21.sqlite3")
+    bak.set_defaults(func=cmd_backup)
     imp = sub.add_parser("import-refs")
     imp.add_argument("directory")
     imp.add_argument("--owner", default="", help="token właściciela (puste = baza wspólna)")

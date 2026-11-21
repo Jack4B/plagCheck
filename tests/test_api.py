@@ -257,3 +257,15 @@ def test_worker_cli_import_and_run(tmp_path, client, capsys):
     assert shared["references"][0]["shared"] is True  # owner='' → baza wspólna
     assert worker.main(["run"]) == 0
     assert "zadania wykonane" in capsys.readouterr().out
+
+
+def test_worker_backup_creates_consistent_copy(tmp_path, client):
+    import sqlite3
+
+    from app import db, worker
+
+    db.add_reference("", "a.txt", SOURCE_ARTICLE)
+    target = tmp_path / "kopie" / "plagcheck.sqlite3"
+    assert worker.main(["backup", str(target)]) == 0
+    rows = sqlite3.connect(target).execute("SELECT name FROM reference_docs").fetchall()
+    assert rows == [("a.txt",)]

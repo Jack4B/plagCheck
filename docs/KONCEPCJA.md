@@ -1,4 +1,7 @@
-# Koncepcja v1.1 — co zmieniono względem konspektu i dlaczego
+# Koncepcja v1.1–1.2 — co zmieniono względem konspektu i dlaczego
+
+> **v1.2 (decyzja):** głównym hostingiem jest **Oracle Cloud Always Free** (Ampere A1, profil full,
+> Docker + Caddy). CT8 pozostaje wspieraną alternatywą z profilem lite. Wdrożenie: `docs/DEPLOY_ORACLE.md`.
 
 Konspekt (`docs/konspekt.md`) zakładał jeden stos: FastAPI + spaCy + Sentence-BERT + FAISS +
 Elasticsearch + Celery/Redis + Next.js — i jednocześnie hosting na darmowym CT8 (FreeBSD, ~512 MB RAM).
@@ -20,9 +23,9 @@ Profil wybiera się sam: silnik semantyczny włącza się, gdy ustawiony jest `S
 **i** biblioteki są zainstalowane; w przeciwnym razie aplikacja działa jako lite. `/api/health`
 zwraca `"profile": "lite" | "full"`, a UI pokazuje, czy parafrazy synonimiczne są aktywne.
 
-**Rekomendacja hostingu.** CT8 wystarcza do samokontroli z bazą lokalną i darmowymi źródłami.
-Jeśli liczy się wykrywanie przepisanych tekstów (synonimy), lepszy jest mały VPS z Dockerem —
-np. Oracle Cloud *Always Free* (ARM, do 24 GB RAM, 0 zł) lub płatny VPS z ≥ 2 GB RAM (~20 zł/mies.).
+**Hosting (decyzja v1.2).** Oracle Cloud *Always Free* — ARM, do 24 GB RAM, 0 zł — uruchamia profil
+full bez kompromisów, ma stały proces (brak problemu z ubijaniem wątków przez Passengera) i pozwala
+na 4 równoległe analizy. CT8 zostaje dla osób bez konta Oracle (profil lite).
 
 ## 2. Wiele źródeł naraz zamiast jednego dostawcy
 

@@ -29,3 +29,14 @@ jobs:
       - name: Build CT8 package (fails if any dependency is not pure Python)
         if: matrix.profile == 'ct8'
         run: ./scripts/build_package.sh
+
+  deploy-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck
+        run: pip install shellcheck-py && shellcheck -S warning deploy/oracle/*.sh deploy/ct8/*.sh scripts/*.sh
+      - name: docker compose config (Oracle, profil https)
+        run: printf 'DOMAIN=example.org\nACCESS_KEY=x\n' > .env && docker compose --profile https config --quiet
+      - name: Paczka Oracle
+        run: ./scripts/build_package.sh oracle

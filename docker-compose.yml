@@ -1,8 +1,11 @@
-# PlagCheck na VPS (np. Oracle Cloud Always Free ARM, Hetzner CX22, Mikr.us).
-#   cp .env.example .env    # ustaw ACCESS_KEY i ewentualne klucze API
-#   docker compose up -d --build
-# Aplikacja nasłuchuje na 127.0.0.1:8000 — wystaw ją przez reverse proxy z HTTPS
-# (np. Caddy: `caddy reverse-proxy --from twojadomena.pl --to 127.0.0.1:8000`).
+# PlagCheck — Docker (główny hosting: Oracle Cloud Always Free, patrz docs/DEPLOY_ORACLE.md)
+#
+#   docker compose --profile https up -d --build    # aplikacja + Caddy (HTTPS, Let's Encrypt)
+#   docker compose up -d --build                    # sama aplikacja na 127.0.0.1:8000
+#
+# Zmienne z pliku .env: DOMAIN (dla Caddy), PLAGCHECK_PROFILE (full | lite), ACCESS_KEY, klucze API…
+name: plagcheck
+
 services:
   plagcheck:
     build:
@@ -18,7 +21,26 @@ services:
     volumes:
       - plagcheck-data:/data
     restart: unless-stopped
-    mem_limit: 3g
+    mem_limit: ${PLAGCHECK_MEM_LIMIT:-4g}
+
+  caddy:
+    image: caddy:2
+    profiles: ["https"]
+    depends_on:
+      - plagcheck
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/oracle/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    restart: unless-stopped
 
 volumes:
   plagcheck-data:
+  caddy-data:
+  caddy-config:

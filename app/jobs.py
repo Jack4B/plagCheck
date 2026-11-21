@@ -22,7 +22,8 @@ from .services.web_search import CachedSearcher, build_providers
 
 log = logging.getLogger("plagcheck.jobs")
 
-_slots = threading.BoundedSemaphore(2)
+# Liczba równoległych analiz: 2 na CT8 (RAM), więcej na Oracle (MAX_CONCURRENT_JOBS).
+_slots = threading.BoundedSemaphore(get_settings().max_concurrent_jobs)
 
 # Wstrzykiwalne fabryki (testy podmieniają je na fałszywe).
 providers_factory = build_providers

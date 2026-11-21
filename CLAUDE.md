@@ -5,14 +5,17 @@
 **Nazwa:** PlagCheck — Plagiarism Detector (wstępne wykrywanie plagiatu i treści AI)
 **Cel:** Narzędzie pomocnicze do samokontroli dokumentów studenckich pod kątem podobieństw do treści publicznych, lokalnej bazy oraz cech tekstu generowanego przez AI.
 **Nie jest** zamiennikiem JSA/Turnitin ani komercyjnych detektorów AI.
-**Hosting:** CT8.pl (MyDevil, FreeBSD) — self-hosted, Passenger.
+**Hosting:** **Oracle Cloud Always Free** (Ampere A1, Docker, profil full) — główny od v1.2.
+Alternatywa: CT8.pl (MyDevil, FreeBSD, Passenger, profil lite).
 **Konspekt:** `docs/konspekt.md`. Skill cyklu życia: `.claude/skills/plagiarism-detector-lifecycle/`.
 
-## Stan (v1.1.0)
+## Stan (v1.2.0)
 
 Etapy 1–6 konspektu zrealizowane. **Koncepcja v1.1** (`docs/KONCEPCJA.md`): dwa profile jednej bazy kodu —
 **lite** (CT8, Passenger, czysty Python) i **full** (Docker/VPS, + parafrazy synonimiczne przez embeddingi);
 źródła przeszukiwane równolegle (web API + Wikipedia + OpenAlex); baza lokalna z indeksem winnowing.
+**v1.2:** Oracle Cloud jako główny hosting — `deploy/oracle/setup.sh` (Docker + Caddy/HTTPS + zapora + kopie),
+paczka `plagcheck-oracle-<wersja>.tar.gz`, `deploy/oracle/deploy.sh IP`.
 
 ## Stos technologiczny (faktyczny)
 
@@ -27,7 +30,14 @@ Etapy 1–6 konspektu zrealizowane. **Koncepcja v1.1** (`docs/KONCEPCJA.md`): dw
 - **Frontend:** vanilla JS (ES modules) + CSS, bez kroku budowania, CSP `script-src 'self'`
 - Wszystkie zależności produkcyjne to koła `py3-none-any` (lista: `requirements-lock.txt`)
 
-## Ograniczenia CT8
+## Oracle Cloud (główny hosting)
+
+- Ampere A1 (ARM64): darmowo do 4 OCPU / 24 GB RAM łącznie; zalecane 2 OCPU / 12 GB, Ubuntu 24.04.
+- Porty 80/443 trzeba otworzyć **w konsoli** (Security List VCN) — skrypt otwiera tylko zaporę w systemie.
+- Darmowe konto: Oracle może odebrać bezczynną instancję → zalecany upgrade do Pay As You Go (Always Free dalej 0 zł).
+- Obraz musi działać na ARM64 i x86_64 (python:3.12-slim, torch CPU, caddy:2 — wszystkie multi-arch).
+
+## Ograniczenia CT8 (profil lite)
 
 - Darmowy plan: ~512 MB RAM, 3 GB dysk, limit procesów.
 - Brak stałego ASGI → Passenger (WSGI) + a2wsgi; procesy mogą być ubijane → zadania wznawiane (cron + samonaprawa przy odpytywaniu statusu).
@@ -42,10 +52,16 @@ python3 -m venv .venv && source .venv/bin/activate && pip install -r requirement
 uvicorn app.main:app --reload
 pytest
 
-# paczka + wdrożenie
-./scripts/build_package.sh                         # dist/plagcheck-ct8-<wersja>.tar.gz (lite)
-./deploy/ct8/deploy.sh LOGIN sN.ct8.pl [DOMENA]    # scp + ssh install.sh
-docker compose up -d --build                       # profil full na VPS
+# paczki + wdrożenie
+./scripts/build_package.sh oracle                  # dist/plagcheck-oracle-<wersja>.tar.gz (Docker, full)
+./scripts/build_package.sh ct8                     # dist/plagcheck-ct8-<wersja>.tar.gz (lite)
+SSH_KEY=~/.ssh/oracle.key ./deploy/oracle/deploy.sh IP [--domain D]   # Oracle: scp + ssh setup.sh
+./deploy/ct8/deploy.sh LOGIN sN.ct8.pl [DOMENA]    # CT8: scp + ssh install.sh
+
+# na serwerze Oracle
+cd /opt/plagcheck && sudo docker compose logs -f plagcheck
+sudo docker compose --profile https up -d          # po zmianie .env
+sudo docker compose exec plagcheck python -m app.worker backup /data/kopia.sqlite3
 
 # na serwerze CT8
 devil www restart DOMENA
@@ -65,7 +81,9 @@ app/db.py              tabele: jobs, reference_docs, search_cache
 app/services/          extractor, preprocessor, textutils, phrases, web_search,
                        fingerprints, similarity, semantic, ai_detector, report
 app/static/            frontend
+deploy/oracle/         setup.sh (na serwerze), deploy.sh (lokalnie), Caddyfile
 deploy/ct8/            install.sh (na serwerze), deploy.sh (lokalnie)
+Dockerfile, docker-compose.yml   profil full/lite + Caddy (profil compose "https")
 scripts/build_package.sh
 tests/                 pytest + tests/e2e/e2e.mjs (Playwright)
 ```
@@ -92,11 +110,11 @@ Nie istnieje publiczne API do wyszukiwania treści prac. Aplikacja **nie może**
 2. `docs/solutions/` — baza rozwiązanych problemów
 3. `docs/CONCEPTS.md` — słownik pojęć
 4. `docs/KONCEPCJA.md` — decyzje architektoniczne v1.1
-5. `docs/DEPLOY_CT8.md`, `docs/DEPLOY_DOCKER.md` — wdrożenie
+5. `docs/DEPLOY_ORACLE.md` (główne), `docs/DEPLOY_DOCKER.md`, `docs/DEPLOY_CT8.md` — wdrożenie
 
 ## Disclaimer
 
 Aplikacja służy wyłącznie do samokontroli. Nie może być używana do omijania systemów uczelnianych.
 
 ---
-*Ostatnia aktualizacja: 21 listopada 2026 — v1.1.0: profile lite/full, wiele źródeł, indeks winnowing.*
+*Ostatnia aktualizacja: 21 listopada 2026 — v1.2.0: Oracle Cloud Always Free jako główny hosting.*

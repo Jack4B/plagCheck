@@ -1,4 +1,7 @@
-# PlagCheck — wdrożenie na CT8.pl (MyDevil)
+# PlagCheck — wdrożenie na CT8.pl (MyDevil) — profil lite
+
+> Zalecany hosting to Oracle Cloud Always Free (profil full) — `docs/DEPLOY_ORACLE.md`.
+> CT8 to wspierana alternatywa bez parafraz synonimicznych.
 
 Aplikacja działa jako strona typu **python** obsługiwana przez **Phusion Passenger**
 (FastAPI/ASGI opakowane w WSGI przez `a2wsgi`). Nie trzeba trzymać procesu
@@ -28,22 +31,22 @@ INSTALL_ARGS="--force-domain" ./deploy/ct8/deploy.sh LOGIN sN.ct8.pl
 
 Skrypt buduje paczkę, wysyła ją przez `scp` i uruchamia instalator przez `ssh`.
 
-## Instalacja ręczna (gotowa paczka `plagcheck-ct8-1.1.0.tar.gz`)
+## Instalacja ręczna (gotowa paczka `plagcheck-ct8-1.2.0.tar.gz`)
 
 ```bash
 # 1) wgranie paczki na serwer
-scp plagcheck-ct8-1.1.0.tar.gz LOGIN@sN.ct8.pl:
+scp plagcheck-ct8-1.2.0.tar.gz LOGIN@sN.ct8.pl:
 
 # 2) rozpakowanie i instalacja
 ssh LOGIN@sN.ct8.pl
-tar -xzf plagcheck-ct8-1.1.0.tar.gz
-bash plagcheck-ct8-1.1.0/install.sh LOGIN.ct8.pl
+tar -xzf plagcheck-ct8-1.2.0.tar.gz
+bash plagcheck-ct8-1.2.0/install.sh LOGIN.ct8.pl
 ```
 
 Albo w jednej linii:
 
 ```bash
-scp plagcheck-ct8-1.1.0.tar.gz LOGIN@sN.ct8.pl: && ssh -t LOGIN@sN.ct8.pl 'tar -xzf plagcheck-ct8-1.1.0.tar.gz && bash plagcheck-ct8-1.1.0/install.sh LOGIN.ct8.pl'
+scp plagcheck-ct8-1.2.0.tar.gz LOGIN@sN.ct8.pl: && ssh -t LOGIN@sN.ct8.pl 'tar -xzf plagcheck-ct8-1.2.0.tar.gz && bash plagcheck-ct8-1.2.0/install.sh LOGIN.ct8.pl'
 ```
 
 Instalator wypisze adres strony i **wygenerowany klucz dostępu** (wpisujesz go raz

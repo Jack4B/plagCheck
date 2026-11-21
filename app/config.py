@@ -83,6 +83,7 @@ class Settings:
     report_ttl_hours: int
     # Zadania w tle
     worker_mode: str  # thread | cron
+    max_concurrent_jobs: int
     job_stale_minutes: int
     extra: dict = field(default_factory=dict)
 
@@ -126,5 +127,6 @@ def get_settings() -> Settings:
         semantic_threshold=_float("SEMANTIC_THRESHOLD", 0.8),
         report_ttl_hours=_int("REPORT_TTL_HOURS", 72),
         worker_mode=(os.environ.get("WORKER_MODE") or "thread").strip().lower(),
+        max_concurrent_jobs=max(1, _int("MAX_CONCURRENT_JOBS", 2)),
         job_stale_minutes=_int("JOB_STALE_MINUTES", 15),
     )

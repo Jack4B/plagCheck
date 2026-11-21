@@ -27,3 +27,6 @@
 | **Kandydat** | Dokument bazy lokalnej z ≥ 2 wspólnymi odciskami; przy dużej bazie tylko kandydaci są porównywani dokładnie. |
 | **Embedding zdaniowy** | Wektor znaczenia zdania z modelu sentence-transformers; cosinus ≥ `SEMANTIC_THRESHOLD` (0,8) = parafraza synonimiczna. |
 | **OpenAlex** | Otwarty katalog publikacji naukowych (bez klucza); źródło typu „publikacja naukowa”. |
+| **Oracle Always Free / A1** | Darmowe zasoby Oracle Cloud; Ampere A1 = maszyny ARM (do 4 OCPU / 24 GB). Główny hosting od v1.2. |
+| **Security List** | Zapora sieci VCN w konsoli Oracle — niezależna od zapory w systemie; obie muszą przepuszczać 80/443. |
+| **sslip.io** | Darmowy DNS: `1-2-3-4.sslip.io` wskazuje na IP 1.2.3.4 — HTTPS bez własnej domeny. |
