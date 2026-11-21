@@ -37,6 +37,7 @@ AGENTS = {
     "przeglądarka": "Mozilla/5.0 (Linux; Android 15) AppleWebKit/537.36 (KHTML, like Gecko) "
                     "Chrome/131.0.0.0 Mobile Safari/537.36",
 }
+ASSET_RE = re.compile(r"\.(png|jpe?g|webp|gif|svg|ico|woff2?|ttf|css|js|json|xml|mp4)$", re.I)
 HREF_RE = re.compile(r"""href\s*=\s*["']([^"'#]+)["']""", re.I)
 
 
@@ -61,7 +62,9 @@ def article_links(home: str, html: str, n: int) -> list[str]:
         if parts.scheme != "https" or not parts.hostname or not parts.hostname.endswith(domain):
             continue
         path = parts.path
-        if len(path) < 30 or path.count("-") < 3 or url in out:
+        last = path.rstrip("/").rsplit("/", 1)[-1]
+        if (len(path) < 30 or last.count("-") < 3 or url in out or ASSET_RE.search(path)
+                or any(seg in path for seg in ("/fonts/", "/favicon", "/images/", "/_i/", "/media/", "/static/"))):
             continue
         out.append(url.split("?")[0])
         if len(out) >= n:
