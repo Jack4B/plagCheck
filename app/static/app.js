@@ -510,7 +510,7 @@ const SETTINGS_FORM = [
   ["Darmowe źródła", "", [
     ["SEARCH_WIKIPEDIA", "bool", "Wikipedia"],
     ["SEARCH_OPENALEX", "bool", "OpenAlex — publikacje naukowe"],
-    ["OPENALEX_MAILTO", "text", "E-mail dla OpenAlex (opcjonalnie, szybsze odpowiedzi)"],
+    ["OPENALEX_MAILTO", "text", "E-mail kontaktowy dla Wikipedii i OpenAlex (opcjonalnie — mniej blokad „za dużo zapytań”)"],
   ]],
   ["Zakres wyszukiwania", "Więcej zapytań = wyższa skuteczność, ale dłuższa analiza i większe zużycie limitu płatnego API.", [
     ["MAX_WEB_QUERIES", "int", "Frazy dokładne na źródło"],

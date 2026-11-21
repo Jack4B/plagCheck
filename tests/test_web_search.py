@@ -114,3 +114,69 @@ def test_cached_searcher_uses_db_cache():
     assert second.search('"abc"')[0].title == "A"
     assert provider.calls == 1
     assert second.cache_hits == 1
+
+
+def _serve(responses):
+    """Lokalny serwer HTTP zwracający kolejno podane (status, nagłówki, treść)."""
+    seen = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            seen.append(dict(self.headers))
+            status, headers, body = responses[min(len(seen) - 1, len(responses) - 1)]
+            self.send_response(status)
+            for k, v in headers.items():
+                self.send_header(k, v)
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *a):
+            pass
+
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server, seen
+
+
+def test_rate_limit_429_is_retried_with_retry_after(monkeypatch):
+    sleeps = []
+    monkeypatch.setattr(web_search.time, "sleep", lambda s: sleeps.append(s))
+    server, seen = _serve([(429, {"Retry-After": "3"}, b""), (429, {}, b""), (200, {}, b'{"ok": true}')])
+    try:
+        data = web_search._get_json(f"http://127.0.0.1:{server.server_port}/api")
+    finally:
+        server.shutdown()
+    assert data == {"ok": True} and len(seen) == 3
+    assert sleeps[0] == 3.0 and sleeps[1] == 4.0  # Retry-After, potem backoff 2^2
+
+
+def test_rate_limit_gives_up_after_retries(monkeypatch):
+    monkeypatch.setattr(web_search.time, "sleep", lambda s: None)
+    server, seen = _serve([(429, {}, b"")])
+    try:
+        with pytest.raises(web_search.SearchError, match="HTTP 429"):
+            web_search._get_json(f"http://127.0.0.1:{server.server_port}/api")
+    finally:
+        server.shutdown()
+    assert len(seen) == web_search.MAX_RETRIES + 1
+
+
+def test_host_throttle_spaces_wikipedia_requests(monkeypatch):
+    sleeps = []
+    clock = [100.0]
+    monkeypatch.setattr(web_search.time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(web_search.time, "sleep", lambda s: sleeps.append(round(s, 2)))
+    throttle = web_search._HostThrottle()
+    for _ in range(3):
+        throttle.wait("pl.wikipedia.org")
+    throttle.wait("example.com")  # bez limitu
+    assert sleeps == [1.0, 2.0]
+
+
+def test_user_agent_contact_only_when_user_sets_it(monkeypatch):
+    monkeypatch.delenv("CONTACT_EMAIL", raising=False)
+    monkeypatch.delenv("OPENALEX_MAILTO", raising=False)
+    monkeypatch.delenv("HTTP_USER_AGENT", raising=False)
+    assert "@" not in web_search.user_agent() and web_search.user_agent().startswith("PlagCheck/")
+    monkeypatch.setenv("OPENALEX_MAILTO", "ja@example.org")
+    assert "ja@example.org" in web_search.user_agent()

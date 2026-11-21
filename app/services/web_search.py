@@ -14,6 +14,7 @@ import ipaddress
 import json
 import os
 import socket
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -24,7 +25,55 @@ from html.parser import HTMLParser
 from typing import Callable, Protocol
 
 # Wikipedia prosi o identyfikowalny User-Agent — można go ustawić w .env.
-USER_AGENT = "PlagCheck/1.0 (self-hosted document self-check tool)"
+# Zasady Wikimedia: identyfikowalny User-Agent (nazwa/wersja + kontakt). Kontakt (e-mail) dodajemy
+# tylko, gdy użytkownik sam go poda (CONTACT_EMAIL / OPENALEX_MAILTO) — nie wysyłamy danych bez zgody.
+USER_AGENT = "PlagCheck (self-hosted plagiarism self-check)"
+
+# Minimalny odstęp między żądaniami do jednego hosta (wspólny dla wyszukiwania i pobierania stron).
+HOST_INTERVALS = {"wikipedia.org": 1.0, "api.openalex.org": 0.15, "api.search.brave.com": 1.1}
+RETRY_STATUSES = {429, 503}
+MAX_RETRIES = 3
+MAX_RETRY_WAIT = 30.0
+
+
+def user_agent() -> str:
+    from .. import __version__
+
+    custom = os.environ.get("HTTP_USER_AGENT")
+    if custom:
+        return custom
+    contact = (os.environ.get("CONTACT_EMAIL") or os.environ.get("OPENALEX_MAILTO") or "").strip()
+    base = f"PlagCheck/{__version__} (self-hosted plagiarism self-check"
+    return f"{base}; {contact}) python-urllib" if contact else f"{base}) python-urllib"
+
+
+class _HostThrottle:
+    """Odstęp między żądaniami per host — także między wątkami (wyszukiwanie ∥ pobieranie stron)."""
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._next: dict[str, float] = {}
+
+    @staticmethod
+    def interval(host: str) -> float:
+        for suffix, value in HOST_INTERVALS.items():
+            if host == suffix or host.endswith("." + suffix):
+                return value
+        return 0.0
+
+    def wait(self, host: str) -> None:
+        gap = self.interval(host)
+        if not gap:
+            return
+        with self._lock:
+            now = time.monotonic()
+            start = max(now, self._next.get(host, 0.0))
+            self._next[host] = start + gap
+        if start > now:
+            time.sleep(start - now)
+
+
+_throttle = _HostThrottle()
 MAX_PAGE_BYTES = 4 * 1024 * 1024
 
 
@@ -95,9 +144,10 @@ def http_request(
     timeout: float = 10.0,
     max_bytes: int = MAX_PAGE_BYTES,
 ) -> tuple[bytes, str]:
-    hdrs = {"User-Agent": os.environ.get("HTTP_USER_AGENT", USER_AGENT), "Accept-Encoding": "gzip, deflate"}
+    hdrs = {"User-Agent": user_agent(), "Accept-Encoding": "gzip, deflate"}
     hdrs.update(headers or {})
     req = urllib.request.Request(url, data=body, headers=hdrs, method=method)
+    _throttle.wait(urllib.parse.urlsplit(url).hostname or "")
     with _opener.open(req, timeout=timeout) as resp:
         data = resp.read(max_bytes + 1)
         if len(data) > max_bytes:
@@ -115,14 +165,26 @@ def _get_json(url: str, headers: dict | None = None, timeout: float = 10.0, body
     hdrs = {"Accept": "application/json", **(headers or {})}
     if raw_body is not None:
         hdrs["Content-Type"] = "application/json"
-    try:
-        data, _ = http_request(
-            url, method="POST" if raw_body else "GET", headers=hdrs, body=raw_body, timeout=timeout
-        )
-    except urllib.error.HTTPError as exc:
-        raise SearchError(f"HTTP {exc.code} od {urllib.parse.urlsplit(url).hostname}") from exc
-    except (urllib.error.URLError, TimeoutError, OSError) as exc:
-        raise SearchError(f"błąd połączenia: {exc}") from exc
+    host = urllib.parse.urlsplit(url).hostname
+    for attempt in range(MAX_RETRIES + 1):
+        try:
+            data, _ = http_request(
+                url, method="POST" if raw_body else "GET", headers=hdrs, body=raw_body, timeout=timeout
+            )
+            break
+        except urllib.error.HTTPError as exc:
+            if exc.code in RETRY_STATUSES and attempt < MAX_RETRIES:
+                # serwer prosi o zwolnienie — czekamy (Retry-After albo 2, 4, 8 s) i ponawiamy
+                retry_after = exc.headers.get("Retry-After") if exc.headers else None
+                try:
+                    wait = float(retry_after) if retry_after else 2.0 ** (attempt + 1)
+                except ValueError:
+                    wait = 2.0 ** (attempt + 1)
+                time.sleep(min(max(wait, 1.0), MAX_RETRY_WAIT))
+                continue
+            raise SearchError(f"HTTP {exc.code} od {host}") from exc
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            raise SearchError(f"błąd połączenia: {exc}") from exc
     return json.loads(data.decode("utf-8", errors="replace"))
 
 
@@ -291,7 +353,7 @@ class WikipediaProvider(_BaseProvider):
     """Darmowe źródło bez klucza API — przeszukuje polską Wikipedię."""
 
     name = "wikipedia"
-    min_interval = 0.1
+    min_interval = 0.0  # tempo pilnuje _HostThrottle (1 żądanie/s na *.wikipedia.org)
 
     @property
     def api(self) -> str:

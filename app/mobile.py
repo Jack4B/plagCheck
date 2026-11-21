@@ -39,7 +39,7 @@ EDITABLE = {
     "BRAVE_API_KEY": "secret",
     "SERPER_API_KEY": "secret",
     "SERPAPI_API_KEY": "secret",
-    "OPENALEX_MAILTO": "text",
+    "OPENALEX_MAILTO": "text",  # e-mail kontaktowy: OpenAlex (mailto) i User-Agent dla Wikipedii
     "SEARCH_WIKIPEDIA": "bool",
     "SEARCH_OPENALEX": "bool",
     "MAX_WEB_QUERIES": "int",
