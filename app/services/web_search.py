@@ -13,6 +13,7 @@ import gzip
 import ipaddress
 import json
 import os
+import re
 import socket
 import threading
 import time
@@ -30,7 +31,8 @@ from typing import Callable, Protocol
 USER_AGENT = "PlagCheck (self-hosted plagiarism self-check)"
 
 # Minimalny odstęp między żądaniami do jednego hosta (wspólny dla wyszukiwania i pobierania stron).
-HOST_INTERVALS = {"wikipedia.org": 0.5, "api.openalex.org": 0.25, "api.search.brave.com": 1.1}
+HOST_INTERVALS = {"wikipedia.org": 0.5, "api.openalex.org": 0.25, "api.search.brave.com": 1.1,
+                  "archive.org": 1.0}
 MAX_INTERVAL = 4.0  # po kolejnych 429 odstęp rośnie ×2 do tej wartości
 RETRY_STATUSES = {429, 503}
 MAX_RETRIES = 2       # krótko: analiza jest interaktywna — lepiej pominąć źródło niż wisieć
@@ -297,11 +299,80 @@ def _decode_html(data: bytes, content_type: str) -> str:
         return data.decode("utf-8", errors="replace")
 
 
+_LD_JSON_RE = re.compile(
+    r"<script[^>]+type\s*=\s*[\"']application/ld\+json[\"'][^>]*>(.*?)</script>", re.S | re.I
+)
+_META_RE = re.compile(r"<meta\s[^>]*>", re.I)
+_ATTR_RE = re.compile(r"""([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')""")
+LD_TEXT_KEYS = ("articleBody", "text", "reviewBody")
+MIN_LD_CHARS = 200
+
+
+def _ld_texts(node, out: list[str], depth: int = 0) -> None:
+    if depth > 8:
+        return
+    if isinstance(node, dict):
+        for key in LD_TEXT_KEYS:
+            value = node.get(key)
+            if isinstance(value, str) and len(value) >= MIN_LD_CHARS:
+                out.append(html_to_text(value) if "<" in value else value)
+        for value in node.values():
+            if isinstance(value, (dict, list)):
+                _ld_texts(value, out, depth + 1)
+    elif isinstance(node, list):
+        for item in node:
+            _ld_texts(item, out, depth + 1)
+
+
+def structured_texts(html: str) -> list[str]:
+    """Treść artykułu z danych strukturalnych strony.
+
+    Portale (Onet, WP, Interia…) często budują artykuł skryptem albo dzielą go reklamami,
+    ale dla Google osadzają pełny tekst w JSON-LD (`articleBody`) i lead w `og:description`.
+    """
+    out: list[str] = []
+    for block in _LD_JSON_RE.findall(html):
+        try:
+            _ld_texts(json.loads(block.strip()), out)
+        except ValueError:
+            continue
+    for tag in _META_RE.findall(html):
+        attrs = {m.group(1).lower(): (m.group(2) if m.group(2) is not None else m.group(3)) for m in _ATTR_RE.finditer(tag)}
+        key = (attrs.get("property") or attrs.get("name") or "").lower()
+        content = attrs.get("content") or ""
+        if key in ("og:description", "description", "twitter:description") and len(content) >= 60:
+            out.append(html_to_text(content) if "<" in content or "&" in content else content)
+    return out
+
+
+def _squash(text: str) -> str:
+    return " ".join(text.lower().split())
+
+
+def extract_page_text(html: str) -> str:
+    """Tekst widoczny na stronie + treść z danych strukturalnych, której w nim brakuje."""
+    text = html_to_text(html)
+    seen = _squash(text)
+    extra = []
+    for item in structured_texts(html):
+        probe = _squash(item)[:150]
+        if probe and probe not in seen:
+            extra.append(item)
+            seen += " " + _squash(item)
+    return "\n\n".join([text, *extra]) if extra else text
+
+
+PAGE_HEADERS = {
+    "Accept": "text/html,application/xhtml+xml,application/pdf,text/plain;q=0.9,*/*;q=0.5",
+    "Accept-Language": "pl,en;q=0.5",
+}
+
+
 def fetch_page_text(url: str, timeout: float = 10.0) -> str | None:
     if not is_safe_url(url):
         return None
     try:
-        data, ctype = http_request(url, timeout=timeout, headers={"Accept": "text/html,application/pdf,text/plain"})
+        data, ctype = http_request(url, timeout=timeout, headers=PAGE_HEADERS)
     except Exception:
         return None
     ctype = ctype.lower()
@@ -314,7 +385,29 @@ def fetch_page_text(url: str, timeout: float = 10.0) -> str | None:
             return None
     if "text/plain" in ctype:
         return data.decode("utf-8", errors="replace")
-    return html_to_text(_decode_html(data, ctype))
+    return extract_page_text(_decode_html(data, ctype)) or None
+
+
+WAYBACK_API = "https://archive.org/wayback/available"
+_WAYBACK_TS_RE = re.compile(r"/web/(\d{8,14})/")
+
+
+def fetch_archived_text(url: str, timeout: float = 10.0) -> str | None:
+    """Kopia strony z Internet Archive — gdy portal blokuje pobieranie albo artykuł zniknął."""
+    if not is_safe_url(url):
+        return None
+    try:
+        data = _get_json(f"{WAYBACK_API}?{urllib.parse.urlencode({'url': url})}", timeout=timeout)
+    except Exception:
+        return None
+    snap = ((data or {}).get("archived_snapshots") or {}).get("closest") or {}
+    if not snap.get("available") or not str(snap.get("status", "200")).startswith("2"):
+        return None
+    # „id_” = oryginalny HTML bez paska Wayback Machine
+    raw = _WAYBACK_TS_RE.sub(lambda m: f"/web/{m.group(1)}id_/", str(snap.get("url") or ""), count=1)
+    if not raw.startswith(("http://web.archive.org/", "https://web.archive.org/")):
+        return None
+    return fetch_page_text("https://" + raw.split("://", 1)[1], timeout=timeout + 5)
 
 
 # --------------------------------------------------------------------- dostawcy
