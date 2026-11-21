@@ -56,6 +56,8 @@ pytest
 ./scripts/build_package.sh oracle                  # dist/plagcheck-oracle-<wersja>.tar.gz (Docker, full)
 ./scripts/build_package.sh ct8                     # dist/plagcheck-ct8-<wersja>.tar.gz (lite)
 SSH_KEY=~/.ssh/oracle.key ./deploy/oracle/deploy.sh IP [--domain D]   # Oracle: scp + ssh setup.sh
+# albo GitHub Actions "Deploy Oracle" (sekrety: ORACLE_HOST, ORACLE_SSH_KEY, PLAGCHECK_ACCESS_KEY)
+# — sesja Claude Code nie ma wyjścia na port 22; wdrożenie wyzwala przez actions_run_trigger i czyta logi
 ./deploy/ct8/deploy.sh LOGIN sN.ct8.pl [DOMENA]    # CT8: scp + ssh install.sh
 
 # na serwerze Oracle

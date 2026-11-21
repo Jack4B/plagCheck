@@ -8,6 +8,8 @@
 #      sudo bash setup.sh [--domain plagiat.mojadomena.pl] [--profile full|lite] [--no-https]
 #
 #  Bez --domain używany jest adres <IP>.sslip.io (działa od razu, bez własnej domeny).
+#  Zmienna PLAGCHECK_ACCESS_KEY (opcjonalna) ustawia klucz dostępu zamiast losowego —
+#  używa jej workflow GitHub Actions (klucz z GitHub Secrets nie trafia do logów).
 #
 #  Co robi (idempotentnie — ponowne uruchomienie = aktualizacja):
 #    1. instaluje Docker + Compose,
@@ -153,13 +155,14 @@ NEW_ENV=0
 if [ ! -f "$APP_DIR/.env" ]; then
   say "Tworzenie konfiguracji $APP_DIR/.env"
   cp "$APP_DIR/.env.example" "$APP_DIR/.env"
-  set_env ACCESS_KEY "$(head -c 18 /dev/urandom | base64 | tr -d '/+=' | head -c 16)"
+  set_env ACCESS_KEY "${PLAGCHECK_ACCESS_KEY:-$(head -c 18 /dev/urandom | base64 | tr -d '/+=' | head -c 16)}"
   set_env DATA_DIR /data
   # Oracle A1 ma dużo RAM — więcej równoległych analiz
   if [ "$MEM_MB" -ge 8000 ]; then set_env MAX_CONCURRENT_JOBS 4; fi
   NEW_ENV=1
 fi
 chmod 600 "$APP_DIR/.env"
+if [ -n "${PLAGCHECK_ACCESS_KEY:-}" ]; then set_env ACCESS_KEY "$PLAGCHECK_ACCESS_KEY"; fi
 set_env PLAGCHECK_PROFILE "$PROFILE"
 [ -n "$DOMAIN" ] && set_env DOMAIN "$DOMAIN"
 # Obraz lite nie ma bibliotek ML, więc silnik semantyczny wyłącza się sam — nie ruszamy SEMANTIC_MODEL.
@@ -209,6 +212,6 @@ echo "    Status:         $HEALTH" | cut -c1-160
 echo "    Konfiguracja:   $APP_DIR/.env   (po zmianie: cd $APP_DIR && $UP_HINT)"
 echo "    Logi:           cd $APP_DIR && docker compose logs -f plagcheck"
 echo "    Kopie bazy:     $BACKUP_DIR (codziennie, 14 dni)"
-if [ "$NEW_ENV" = 1 ]; then
+if [ "$NEW_ENV" = 1 ] && [ -z "${PLAGCHECK_ACCESS_KEY:-}" ]; then
   echo "    Klucz dostępu:  $(grep '^ACCESS_KEY=' "$APP_DIR/.env" | cut -d= -f2-)"
 fi

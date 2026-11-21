@@ -1,0 +1,95 @@
+# Wdrożenie PlagCheck na serwer Oracle Cloud (lub dowolny VPS z Ubuntu) przez SSH.
+#
+# Uruchamiane ręcznie: Actions → "Deploy Oracle" → Run workflow.
+# Wymagane sekrety repozytorium (Settings → Secrets and variables → Actions):
+#   ORACLE_HOST            publiczny adres IP serwera
+#   ORACLE_SSH_KEY         zawartość klucza prywatnego SSH (cały plik, z liniami BEGIN/END)
+#   PLAGCHECK_ACCESS_KEY   klucz dostępu do aplikacji (wymyśl; ≥ 12 znaków)
+# Opcjonalne:
+#   ORACLE_SSH_USER        domyślnie "ubuntu" (Oracle Linux: "opc")
+#   ORACLE_DOMAIN          własna domena; bez niej: <IP-z-myślnikami>.sslip.io
+name: Deploy Oracle
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: "Profil aplikacji"
+        type: choice
+        options: [auto, full, lite]
+        default: auto
+
+concurrency:
+  group: deploy-oracle
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      HOST: ${{ secrets.ORACLE_HOST }}
+      SSH_USER: ${{ secrets.ORACLE_SSH_USER || 'ubuntu' }}
+      DOMAIN: ${{ secrets.ORACLE_DOMAIN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sprawdzenie sekretów
+        env:
+          SSH_KEY: ${{ secrets.ORACLE_SSH_KEY }}
+          ACCESS_KEY: ${{ secrets.PLAGCHECK_ACCESS_KEY }}
+        run: |
+          missing=""
+          [ -n "$HOST" ] || missing="$missing ORACLE_HOST"
+          [ -n "$SSH_KEY" ] || missing="$missing ORACLE_SSH_KEY"
+          [ -n "$ACCESS_KEY" ] || missing="$missing PLAGCHECK_ACCESS_KEY"
+          if [ -n "$missing" ]; then echo "::error::Brak sekretów:$missing"; exit 1; fi
+
+      - name: Budowa paczki
+        run: ./scripts/build_package.sh oracle
+
+      - name: Klucz SSH
+        env:
+          SSH_KEY: ${{ secrets.ORACLE_SSH_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -T 15 -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          ssh -i ~/.ssh/id_deploy -o BatchMode=yes -o ConnectTimeout=20 "$SSH_USER@$HOST" 'echo "SSH OK: $(uname -m), $(. /etc/os-release && echo $PRETTY_NAME)"'
+
+      - name: Wysłanie i instalacja (setup.sh)
+        env:
+          ACCESS_KEY: ${{ secrets.PLAGCHECK_ACCESS_KEY }}
+          PROFILE: ${{ inputs.profile }}
+        run: |
+          PKG=$(ls dist/plagcheck-oracle-*.tar.gz); NAME=$(basename "$PKG" .tar.gz)
+          scp -i ~/.ssh/id_deploy -o BatchMode=yes "$PKG" "$SSH_USER@$HOST:"
+          ARGS=""
+          [ -n "$DOMAIN" ] && ARGS="$ARGS --domain $DOMAIN"
+          [ "$PROFILE" != auto ] && ARGS="$ARGS --profile $PROFILE"
+          # Klucz dostępu przekazywany przez stdin — nie pojawia się w linii poleceń ani w logach.
+          printf '%s' "$ACCESS_KEY" | ssh -i ~/.ssh/id_deploy -o BatchMode=yes "$SSH_USER@$HOST" \
+            "rm -rf '$NAME' && tar -xzf '$NAME.tar.gz' && sudo PLAGCHECK_ACCESS_KEY=\"\$(cat)\" bash '$NAME/setup.sh' $ARGS && rm -rf '$NAME' '$NAME.tar.gz'"
+
+      - name: Test z internetu (HTTPS)
+        run: |
+          D="$DOMAIN"; [ -n "$D" ] || D="$(echo "$HOST" | tr . -).sslip.io"
+          echo "Adres: https://$D/"
+          for _ in $(seq 1 30); do
+            if out=$(curl -fsS --max-time 10 "https://$D/api/health"); then
+              echo "$out"
+              { echo "### ✅ PlagCheck działa: https://$D/"; echo '```json'; echo "$out"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::https://$D/ nie odpowiada z internetu. Najczęściej: brak reguł Ingress 80/443 w Security List VCN (konsola Oracle)."
+          ssh -i ~/.ssh/id_deploy "$SSH_USER@$HOST" 'cd /opt/plagcheck && sudo docker compose --profile https ps && sudo docker compose logs --tail 40 caddy' || true
+          exit 1
+
+      - name: Sprzątanie klucza
+        if: always()
+        run: rm -f ~/.ssh/id_deploy

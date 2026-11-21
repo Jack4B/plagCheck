@@ -56,7 +56,25 @@ otwiera już `setup.sh`.
 - **Własna domena / subdomena:** dodaj rekord **A** `plagiat.mojadomena.pl → IP` i podaj `--domain`.
 - **Darmowa nazwa:** np. <https://www.duckdns.org> → `mojplagcheck.duckdns.org`.
 
-## 5. Instalacja — jedno polecenie (z własnego komputera)
+## 5a. Instalacja przez GitHub Actions (bez własnego terminala)
+
+Sekrety zostają w GitHubie (zamaskowane w logach); wdrożenie uruchamiasz przyciskiem
+albo może je uruchomić Claude Code i przeczytać logi.
+
+1. *GitHub → repozytorium → Settings → Secrets and variables → Actions → New repository secret*:
+
+   | Sekret | Wartość |
+   |--------|---------|
+   | `ORACLE_HOST` | publiczny IP maszyny |
+   | `ORACLE_SSH_KEY` | **cała** zawartość pobranego klucza prywatnego (od `-----BEGIN` do `-----END …-----`) |
+   | `PLAGCHECK_ACCESS_KEY` | wymyślony klucz dostępu do aplikacji (≥ 12 znaków) |
+   | `ORACLE_SSH_USER` | *(opcjonalnie)* `opc` dla Oracle Linux; domyślnie `ubuntu` |
+   | `ORACLE_DOMAIN` | *(opcjonalnie)* własna domena; domyślnie `<IP>.sslip.io` |
+
+2. *Actions → Deploy Oracle → Run workflow*. Workflow buduje paczkę, łączy się przez SSH,
+   uruchamia `setup.sh`, a na końcu **sprawdza stronę z internetu** (wykrywa brak reguł z kroku 3).
+
+## 5b. Instalacja — jedno polecenie (z własnego komputera)
 
 ```bash
 chmod 600 ~/.ssh/oracle.key

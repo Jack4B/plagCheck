@@ -24,7 +24,7 @@ jobs:
         run: pip install --no-deps -r requirements-lock.txt && pip install pytest httpx
       - name: Install (pydantic v2)
         if: matrix.profile == 'pydantic-v2'
-        run: pip install -r requirements-dev.txt "pydantic>=2,<3" numpy
+        run: pip install -r requirements-dev.txt && pip install "pydantic>=2,<3" numpy   # świadome nadpisanie pinu v1
       - run: pytest
       - name: Build CT8 package (fails if any dependency is not pure Python)
         if: matrix.profile == 'ct8'
