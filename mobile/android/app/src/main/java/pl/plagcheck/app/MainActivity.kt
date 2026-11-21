@@ -110,7 +110,10 @@ class MainActivity : AppCompatActivity() {
                     .callAttr("start", dataDir.absolutePath, modelDir?.absolutePath ?: "")
                     .toInt()
                 baseUrl = "http://127.0.0.1:$port"
+                val clearCache = webCacheIsStale()
                 runOnUiThread {
+                    // Po aktualizacji APK pamięć podręczna WebView może trzymać stary interfejs.
+                    if (clearCache) web.clearCache(true)
                     web.loadUrl("$baseUrl/app")
                     web.visibility = View.VISIBLE
                     loading.visibility = View.GONE
@@ -119,6 +122,15 @@ class MainActivity : AppCompatActivity() {
                 runOnUiThread { loadingText.text = "Nie udało się uruchomić aplikacji:\n\n${e.message}" }
             }
         }
+    }
+
+    /** True raz po każdej instalacji nowej wersji — wtedy czyścimy pamięć podręczną WebView. */
+    private fun webCacheIsStale(): Boolean {
+        val marker = File(filesDir, "webview-cache.version")
+        val version = packageManager.getPackageInfo(packageName, 0).longVersionCode.toString()
+        if (marker.isFile && marker.readText() == version) return false
+        marker.writeText(version)
+        return true
     }
 
     /** Kopiuje model parafraz z APK do pamięci telefonu (raz na wersję aplikacji). */

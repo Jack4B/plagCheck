@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from . import __version__, db, jobs
@@ -41,6 +41,10 @@ async def security_headers(request: Request, call_next):
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("Referrer-Policy", "no-referrer")
     response.headers.setdefault("X-Frame-Options", "DENY")
+    if request.url.path.startswith("/static/"):
+        # Przeglądarka (także WebView w APK) ma sprawdzać, czy plik się zmienił —
+        # inaczej po aktualizacji interfejs działa na starym app.js.
+        response.headers["Cache-Control"] = "no-cache"
     if not request.url.path.startswith("/api/docs"):
         response.headers.setdefault(
             "Content-Security-Policy",
@@ -327,12 +331,23 @@ async def http_error(_request: Request, exc: HTTPException):
 # ------------------------------------------------------------------- frontend
 
 
+_ASSET_RE = re.compile(r'(/static/[\w.-]+\.(?:js|css))(?=")')
+
+
+def _page(name: str) -> HTMLResponse:
+    """Strona HTML z numerem wersji w adresach skryptów i stylów (`app.js?v=1.4.7`),
+    żeby po aktualizacji przeglądarka nie użyła starych plików z pamięci podręcznej."""
+    html = (STATIC_DIR / name).read_text(encoding="utf-8")
+    html = _ASSET_RE.sub(lambda m: f"{m.group(1)}?v={__version__}", html)
+    return HTMLResponse(html, headers={"Cache-Control": "no-cache"})
+
+
 @app.get("/", include_in_schema=False)
 def landing():
-    return FileResponse(STATIC_DIR / "landing.html", headers={"Cache-Control": "no-cache"})
+    return _page("landing.html")
 
 
 @app.get("/app", include_in_schema=False)
 @app.get("/app/", include_in_schema=False)
 def index():
-    return FileResponse(STATIC_DIR / "index.html", headers={"Cache-Control": "no-cache"})
+    return _page("index.html")

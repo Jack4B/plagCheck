@@ -190,6 +190,22 @@ def test_frontend_and_security_headers(client):
         assert client.get(asset).status_code == 200, asset
 
 
+def test_static_assets_are_versioned_and_revalidated(client):
+    """Po aktualizacji APK WebView nie może użyć starego app.js z pamięci podręcznej."""
+    from app import __version__
+
+    app_page = client.get("/app")
+    assert f'/static/app.js?v={__version__}"' in app_page.text
+    assert f'/static/styles.css?v={__version__}"' in app_page.text
+    assert app_page.headers["cache-control"] == "no-cache"
+    landing = client.get("/").text
+    assert f'/static/landing.js?v={__version__}"' in landing
+    assert f'/static/landing.css?v={__version__}"' in landing
+    assert "/static/img/04-raport.jpg\"" in landing  # obrazki bez zmian
+    res = client.get(f"/static/app.js?v={__version__}")
+    assert res.status_code == 200 and res.headers["cache-control"] == "no-cache"
+
+
 def test_landing_has_no_inline_scripts_or_styles():
     """CSP (script-src/style-src 'self') zablokowałby inline — landing musi być w pełni zewnętrzny."""
     import re
