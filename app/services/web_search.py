@@ -330,20 +330,78 @@ class WikipediaProvider(_BaseProvider):
         return None
 
 
-def build_provider(settings) -> SearchProvider | None:
+class OpenAlexProvider(_BaseProvider):
+    """OpenAlex — otwarty katalog ~250 mln publikacji naukowych (bez klucza API).
+
+    Zwraca tytuł + abstrakt (odtworzony z indeksu odwróconego) jako snippet;
+    jeśli publikacja jest w otwartym dostępie, URL wskazuje pełny tekst.
+    """
+
+    name = "openalex"
+    min_interval = 0.15  # "polite pool": do 10 zapytań/s
+
+    def __init__(self, mailto: str = "", **kw):
+        super().__init__(**kw)
+        self.mailto = mailto
+
+    @staticmethod
+    def rebuild_abstract(inverted: dict | None) -> str:
+        if not inverted:
+            return ""
+        positions = [(pos, word) for word, idxs in inverted.items() for pos in idxs]
+        return " ".join(word for _, word in sorted(positions))
+
+    def search(self, query: str) -> list[SearchResult]:
+        params = {
+            "search": query,
+            "per-page": 5,
+            "select": "id,display_name,doi,abstract_inverted_index,open_access",
+        }
+        if self.mailto:
+            params["mailto"] = self.mailto
+        data = _get_json("https://api.openalex.org/works?" + urllib.parse.urlencode(params), timeout=self.timeout)
+        results = []
+        for work in data.get("results") or []:
+            url = (work.get("open_access") or {}).get("oa_url") or work.get("doi") or work.get("id")
+            if not url:
+                continue
+            title = work.get("display_name") or ""
+            abstract = self.rebuild_abstract(work.get("abstract_inverted_index"))
+            results.append(SearchResult(url, title, f"{title}. {abstract}".strip()))
+        return results
+
+
+def build_web_provider(settings) -> SearchProvider | None:
+    """Płatny/kluczowy dostawca wyników z całego internetu (pierwszy skonfigurowany)."""
     name = settings.search_provider
     kw = {"timeout": settings.http_timeout, "lang": settings.search_lang}
-    if name in ("none", "off", ""):
-        return None
     if name in ("brave", "auto") and settings.brave_api_key:
         return BraveProvider(settings.brave_api_key, **kw)
     if name in ("serper", "auto") and settings.serper_api_key:
         return SerperProvider(settings.serper_api_key, **kw)
     if name in ("serpapi", "auto") and settings.serpapi_api_key:
         return SerpApiProvider(settings.serpapi_api_key, **kw)
-    if name in ("wikipedia", "auto"):
-        return WikipediaProvider(**kw)
     return None
+
+
+def build_providers(settings) -> list[SearchProvider]:
+    """Wszystkie aktywne źródła — przeszukiwane równolegle.
+
+    SEARCH_PROVIDER=none wyłącza sieć całkowicie. Darmowe źródła (Wikipedia,
+    OpenAlex) działają zawsze, chyba że wyłączono je flagami.
+    """
+    if settings.search_provider in ("none", "off"):
+        return []
+    kw = {"timeout": settings.http_timeout, "lang": settings.search_lang}
+    providers: list[SearchProvider] = []
+    web = build_web_provider(settings)
+    if web is not None:
+        providers.append(web)
+    if settings.search_wikipedia or settings.search_provider == "wikipedia":
+        providers.append(WikipediaProvider(**kw))
+    if settings.search_openalex and settings.search_provider != "wikipedia":
+        providers.append(OpenAlexProvider(settings.openalex_mailto, **kw))
+    return providers
 
 
 # ------------------------------------------------------------ cache + throttling

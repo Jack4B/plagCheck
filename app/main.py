@@ -126,11 +126,15 @@ async def _read_upload(upload: UploadFile, limit: int) -> bytes:
 @app.get("/api/health")
 def health():
     settings = get_settings()
-    provider = jobs.provider_factory(settings)
+    from .services.semantic import semantic_available
+
+    semantic = bool(settings.semantic_model) and semantic_available()
     return {
         "status": "ok",
         "version": __version__,
-        "search_provider": provider.name if provider else None,
+        "profile": "full" if semantic else "lite",
+        "search_sources": [p.name for p in jobs.providers_factory(settings)],
+        "semantic_model": settings.semantic_model if semantic else None,
         "worker_mode": settings.worker_mode,
         "access_required": bool(settings.access_key),
         "max_upload_mb": settings.max_upload_mb,

@@ -11,7 +11,8 @@ from app.services.web_search import (
     CachedSearcher,
     SearchResult,
     WikipediaProvider,
-    build_provider,
+    OpenAlexProvider,
+    build_providers,
     html_to_text,
     is_safe_url,
 )
@@ -51,13 +52,32 @@ def test_fetch_page_text_refuses_private_hosts():
         server.shutdown()
 
 
-def test_build_provider_selection(monkeypatch):
+def test_build_providers_selection(monkeypatch):
+    names = lambda: [p.name for p in build_providers(get_settings())]  # noqa: E731
     monkeypatch.setenv("SEARCH_PROVIDER", "auto")
-    assert isinstance(build_provider(get_settings()), WikipediaProvider)
+    assert names() == ["wikipedia", "openalex"]  # darmowe źródła bez kluczy
     monkeypatch.setenv("BRAVE_API_KEY", "k")
-    assert isinstance(build_provider(get_settings()), BraveProvider)
+    assert names() == ["brave", "wikipedia", "openalex"]
+    monkeypatch.setenv("SEARCH_OPENALEX", "0")
+    assert names() == ["brave", "wikipedia"]
     monkeypatch.setenv("SEARCH_PROVIDER", "none")
-    assert build_provider(get_settings()) is None
+    assert names() == []
+
+
+def test_openalex_parsing(monkeypatch):
+    payload = {"results": [
+        {"id": "https://openalex.org/W1", "display_name": "Heliocentryzm",
+         "doi": "https://doi.org/10.1/x", "open_access": {"oa_url": None},
+         "abstract_inverted_index": {"Słońce": [0], "w": [1], "centrum": [2]}},
+        {"id": "https://openalex.org/W2", "display_name": "Bez abstraktu",
+         "open_access": {"oa_url": "https://repo.example/w2.pdf"}, "abstract_inverted_index": None},
+    ]}
+    captured = {}
+    monkeypatch.setattr(web_search, "_get_json", lambda url, **k: captured.setdefault("url", url) and payload)
+    results = OpenAlexProvider().search('"fraza testowa"')
+    assert results[0] == SearchResult("https://doi.org/10.1/x", "Heliocentryzm", "Heliocentryzm. Słońce w centrum")
+    assert results[1].url == "https://repo.example/w2.pdf"
+    assert "mailto" not in captured["url"]  # bez danych osobowych, jeśli nie skonfigurowano
 
 
 def test_brave_response_parsing(monkeypatch):

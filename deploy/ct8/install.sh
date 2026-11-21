@@ -188,4 +188,4 @@ if [ "$NEW_ENV" = 1 ]; then
   echo "    Klucz dostępu:  $(grep '^ACCESS_KEY=' "$APP_DIR/.env" | cut -d= -f2-)"
   echo "                    (wpisz go w przeglądarce; aby wyłączyć — ustaw pusty ACCESS_KEY w .env)"
 fi
-echo "    Wyszukiwarka:   domyślnie Wikipedia (bez klucza). Brave/Serper/SerpAPI — dopisz klucz API w .env."
+echo "    Źródła:         Wikipedia + OpenAlex (bez kluczy). Brave/Serper/SerpAPI — dopisz klucz API w .env."

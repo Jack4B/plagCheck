@@ -22,3 +22,8 @@
 | **Baza wspólna** | Pliki referencyjne z `owner=''` (import przez `app.worker import-refs`), widoczne dla wszystkich. |
 | **Zadanie (job)** | Jedno sprawdzenie: `pending → running → done/error`. Tekst kasowany po zakończeniu, raport wygasa po TTL. |
 | **Zadanie „stale”** | `running` bez postępu > `JOB_STALE_MINUTES` — proces zginął; zadanie wraca do kolejki. |
+| **Profil lite / full** | lite = CT8, czysty Python; full = Docker z modelem embeddingów (parafrazy synonimiczne). Wybierany automatycznie. |
+| **Winnowing / odcisk** | Z haszy 5-gramów w każdym oknie 4 kolejnych zachowujemy minimum. Każde wspólne dopasowanie ≥ 8 słów daje wspólny odcisk (MOSS). |
+| **Kandydat** | Dokument bazy lokalnej z ≥ 2 wspólnymi odciskami; przy dużej bazie tylko kandydaci są porównywani dokładnie. |
+| **Embedding zdaniowy** | Wektor znaczenia zdania z modelu sentence-transformers; cosinus ≥ `SEMANTIC_THRESHOLD` (0,8) = parafraza synonimiczna. |
+| **OpenAlex** | Otwarty katalog publikacji naukowych (bez klucza); źródło typu „publikacja naukowa”. |

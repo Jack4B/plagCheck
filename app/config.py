@@ -54,7 +54,10 @@ class Settings:
     database_url: str
     access_key: str
     # Wyszukiwanie w sieci
-    search_provider: str  # brave | serper | serpapi | wikipedia | none
+    search_provider: str  # auto | brave | serper | serpapi | wikipedia | none (none = bez sieci)
+    search_wikipedia: bool
+    search_openalex: bool
+    openalex_mailto: str
     brave_api_key: str
     serper_api_key: str
     serpapi_api_key: str
@@ -70,6 +73,12 @@ class Settings:
     paraphrase_threshold: float
     max_upload_mb: int
     max_text_chars: int
+    # Baza lokalna
+    local_fullscan_words: int
+    local_max_candidates: int
+    # Profil "full": silnik semantyczny (sentence-transformers), pusty = wyłączony
+    semantic_model: str
+    semantic_threshold: float
     # Prywatność / retencja
     report_ttl_hours: int
     # Zadania w tle
@@ -94,6 +103,9 @@ def get_settings() -> Settings:
         database_url=os.environ.get("DATABASE_URL") or default_db,
         access_key=os.environ.get("ACCESS_KEY", ""),
         search_provider=(os.environ.get("SEARCH_PROVIDER") or "auto").strip().lower(),
+        search_wikipedia=_bool("SEARCH_WIKIPEDIA", True),
+        search_openalex=_bool("SEARCH_OPENALEX", True),
+        openalex_mailto=os.environ.get("OPENALEX_MAILTO", ""),
         brave_api_key=os.environ.get("BRAVE_API_KEY", ""),
         serper_api_key=os.environ.get("SERPER_API_KEY", ""),
         serpapi_api_key=os.environ.get("SERPAPI_API_KEY", ""),
@@ -108,6 +120,10 @@ def get_settings() -> Settings:
         paraphrase_threshold=_float("PARAPHRASE_THRESHOLD", 0.6),
         max_upload_mb=_int("MAX_UPLOAD_MB", 15),
         max_text_chars=_int("MAX_TEXT_CHARS", 400_000),
+        local_fullscan_words=_int("LOCAL_FULLSCAN_WORDS", 300_000),
+        local_max_candidates=_int("LOCAL_MAX_CANDIDATES", 25),
+        semantic_model=os.environ.get("SEMANTIC_MODEL", "").strip(),
+        semantic_threshold=_float("SEMANTIC_THRESHOLD", 0.8),
         report_ttl_hours=_int("REPORT_TTL_HOURS", 72),
         worker_mode=(os.environ.get("WORKER_MODE") or "thread").strip().lower(),
         job_stale_minutes=_int("JOB_STALE_MINUTES", 15),

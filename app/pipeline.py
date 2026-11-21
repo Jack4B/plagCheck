@@ -1,18 +1,21 @@
-"""Orkiestracja analizy: tekst → frazy → sieć + baza lokalna → AI → raport."""
+"""Orkiestracja analizy: tekst → frazy → źródła (sieć ∥ baza lokalna) → AI → raport."""
 from __future__ import annotations
 
 import logging
+import threading
 from concurrent.futures import ThreadPoolExecutor
-from typing import Callable, Iterable
+from typing import Callable, Iterable, Protocol
+from urllib.parse import urlsplit
 
 from .config import Settings
 from .services.ai_detector import detect_ai
-from .services.phrases import generate_phrases
+from .services.fingerprints import kgram_hashes
+from .services.phrases import Phrase, generate_phrases
 from .services.preprocessor import PreprocessOptions, preprocess
 from .services.report import SourceHit, build_report
 from .services.similarity import DocumentIndex, compare
 from .services.textutils import fold
-from .services.web_search import CachedSearcher, SearchError, SearchProvider
+from .services.web_search import CachedSearcher, SearchError
 
 log = logging.getLogger("plagcheck.pipeline")
 
@@ -27,6 +30,13 @@ DEFAULT_OPTIONS = {
     "exclude_legal": False,
 }
 
+KIND_BY_PROVIDER = {"wikipedia": "wikipedia", "openalex": "scholar"}
+
+
+class ReferenceSource(Protocol):
+    def load(self, doc_hashes: set[int]) -> tuple[Iterable[dict], str]:
+        """Zwraca (dokumenty do porównania, tryb: 'full' | 'index' | 'empty')."""
+
 
 def normalize_options(raw: dict | None) -> dict:
     opts = dict(DEFAULT_OPTIONS)
@@ -37,9 +47,40 @@ def normalize_options(raw: dict | None) -> dict:
 
 
 def _host(url: str) -> str:
-    from urllib.parse import urlsplit
-
     return (urlsplit(url).hostname or "").removeprefix("www.")
+
+
+def _search_all(
+    searchers: list[CachedSearcher],
+    phrases: list[Phrase],
+    progress: Progress,
+    warnings: list[str],
+) -> list[tuple[CachedSearcher, int, list]]:
+    """Każde źródło przeszukuje wszystkie frazy we własnym wątku (własny limit zapytań/s)."""
+    total = max(1, len(searchers) * len(phrases))
+    done = [0]
+    lock = threading.Lock()
+
+    def run(searcher: CachedSearcher):
+        found, errors = [], 0
+        for k, phrase in enumerate(phrases):
+            try:
+                found.append((searcher, k, searcher.search(phrase.query)))
+            except SearchError as exc:
+                errors += 1
+                log.warning("%s: %s", searcher.provider.name, exc)
+                if errors >= 3 and errors > k // 2:
+                    with lock:
+                        warnings.append(f"Źródło „{searcher.provider.name}” zwraca błędy ({exc}) — pominięto je.")
+                    break
+            finally:
+                with lock:
+                    done[0] += 1
+                    progress(10 + int(45 * done[0] / total), f"Wyszukiwanie fraz ({done[0]}/{total})")
+        return found
+
+    with ThreadPoolExecutor(max_workers=len(searchers)) as pool:
+        return [item for chunk in pool.map(run, searchers) for item in chunk]
 
 
 def run_analysis(
@@ -48,17 +89,16 @@ def run_analysis(
     filename: str,
     options: dict,
     settings: Settings,
-    searcher: CachedSearcher | None,
-    references: Iterable[dict] | None,
+    searchers: list[CachedSearcher] | None,
+    references: ReferenceSource | Iterable[dict] | None,
+    encoder=None,
     progress: Progress = lambda p, s: None,
 ) -> dict:
     options = normalize_options(options)
     warnings: list[str] = []
     if len(text) > settings.max_text_chars:
         text = text[: settings.max_text_chars]
-        warnings.append(
-            f"Dokument skrócono do {settings.max_text_chars} znaków (limit serwera)."
-        )
+        warnings.append(f"Dokument skrócono do {settings.max_text_chars} znaków (limit serwera).")
 
     progress(5, "Przetwarzanie tekstu")
     doc = preprocess(
@@ -73,100 +113,102 @@ def run_analysis(
         raise ValueError("Dokument nie zawiera tekstu do analizy.")
     index = DocumentIndex(doc, settings.shingle_size)
     min_run = max(settings.shingle_size + 3, 8)
+    compare_kw = {
+        "paraphrase_threshold": settings.paraphrase_threshold,
+        "min_run": min_run,
+        "encoder": encoder,
+        "semantic_threshold": settings.semantic_threshold,
+    }
 
+    searchers = searchers or []
+    web_enabled = options["web"] and bool(searchers)
     phrases = generate_phrases(
         doc,
-        settings.max_web_queries if (options["web"] and searcher) else 30,
+        settings.max_web_queries if web_enabled else 30,
         settings.phrase_min_words,
         settings.phrase_max_words,
     )
-    phrase_rows = [
-        {"text": p.text, "google_url": p.google_url, "found": False, "hits": 0} for p in phrases
-    ]
+    phrase_rows = [{"text": p.text, "google_url": p.google_url, "found": False, "hits": 0} for p in phrases]
     sources: list[SourceHit] = []
-    next_id = 1
-    search_info = {"provider": None, "queries_sent": 0, "cache_hits": 0, "pages_fetched": 0}
+    search_info = {
+        "providers": [s.provider.name for s in searchers] if web_enabled else [],
+        "queries_sent": 0, "cache_hits": 0, "pages_fetched": 0,
+        "semantic": getattr(encoder, "name", None),
+    }
 
     # ------------------------------------------------------------- sieć
-    if options["web"]:
-        if searcher is None:
-            warnings.append(
-                "Wyszukiwanie w sieci wyłączone (brak skonfigurowanego dostawcy). "
-                "Użyj linków przy frazach kontrolnych, aby sprawdzić je ręcznie."
-            )
-        else:
-            provider: SearchProvider = searcher.provider
-            search_info["provider"] = provider.name
-            url_hits: dict[str, dict] = {}
-            errors = 0
-            for k, phrase in enumerate(phrases):
-                progress(10 + int(45 * k / max(1, len(phrases))), f"Wyszukiwanie fraz ({k + 1}/{len(phrases)})")
-                try:
-                    results = searcher.search(phrase.query)
-                except SearchError as exc:
-                    errors += 1
-                    log.warning("search failed: %s", exc)
-                    if errors >= 3 and errors > k // 2:
-                        warnings.append(f"Wyszukiwarka zwraca błędy ({exc}) — przerwano wyszukiwanie.")
-                        break
-                    continue
-                folded_phrase = fold(phrase.text)
-                for r in results:
-                    entry = url_hits.setdefault(
-                        r.url, {"title": r.title, "hits": 0, "snippets": [], "phrases": set()}
-                    )
-                    entry["hits"] += 1
-                    entry["phrases"].add(k)
-                    entry["snippets"].append(r.snippet)
-                    if folded_phrase[:60] in fold(r.snippet):
-                        entry["hits"] += 2  # fraza widoczna dosłownie w snippecie
-                if results:
-                    phrase_rows[k]["hits"] = len(results)
-            search_info["queries_sent"] = searcher.queries_sent
-            search_info["cache_hits"] = searcher.cache_hits
+    if options["web"] and not searchers:
+        warnings.append(
+            "Wyszukiwanie w sieci wyłączone (brak skonfigurowanych źródeł). "
+            "Użyj linków przy frazach kontrolnych, aby sprawdzić je ręcznie."
+        )
+    if web_enabled:
+        url_hits: dict[str, dict] = {}
+        for searcher, k, results in _search_all(searchers, phrases, progress, warnings):
+            folded_phrase = fold(phrases[k].text)
+            for r in results:
+                entry = url_hits.setdefault(
+                    r.url, {"title": r.title, "hits": 0, "snippets": [], "phrases": set(), "provider": searcher.provider}
+                )
+                entry["hits"] += 1
+                entry["phrases"].add(k)
+                entry["snippets"].append(r.snippet)
+                if folded_phrase[:60] in fold(r.snippet):
+                    entry["hits"] += 2  # fraza widoczna dosłownie w snippecie
+            if results:
+                phrase_rows[k]["hits"] += len(results)
+        search_info["queries_sent"] = sum(s.queries_sent for s in searchers)
+        search_info["cache_hits"] = sum(s.cache_hits for s in searchers)
 
-            ranked = sorted(url_hits.items(), key=lambda kv: -kv[1]["hits"])[: settings.max_pages_fetched]
-            progress(58, f"Pobieranie {len(ranked)} stron źródłowych")
-            with ThreadPoolExecutor(max_workers=4) as pool:
-                pages = list(pool.map(lambda kv: provider.fetch_text(kv[0]), ranked))
-            for (url, entry), page_text in zip(ranked, pages):
-                if page_text:
-                    search_info["pages_fetched"] += 1
-                else:
-                    page_text = "\n\n".join(entry["snippets"])  # zapas: same snippety
-                result = compare(
-                    index, page_text, paraphrase_threshold=settings.paraphrase_threshold, min_run=min_run
+        ranked = sorted(url_hits.items(), key=lambda kv: -kv[1]["hits"])[: settings.max_pages_fetched]
+        progress(58, f"Pobieranie {len(ranked)} stron źródłowych")
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            pages = list(pool.map(lambda kv: kv[1]["provider"].fetch_text(kv[0]), ranked))
+        for n, ((url, entry), page_text) in enumerate(zip(ranked, pages)):
+            progress(60 + int(10 * n / max(1, len(ranked))), "Porównanie ze źródłami z sieci")
+            if page_text:
+                search_info["pages_fetched"] += 1
+            else:
+                page_text = "\n\n".join(dict.fromkeys(entry["snippets"]))  # zapas: snippety/abstrakty
+            result = compare(index, page_text, **compare_kw)
+            if result.is_empty:
+                continue
+            sources.append(
+                SourceHit(
+                    len(sources) + 1, KIND_BY_PROVIDER.get(entry["provider"].name, "web"),
+                    entry["title"] or _host(url), url, result.exact_tokens, result.paraphrase_sentences,
+                    len(entry["phrases"]), result.semantic_sentences,
                 )
-                if result.is_empty:
-                    continue
-                kind = "wikipedia" if "wikipedia.org" in url else "web"
-                sources.append(
-                    SourceHit(
-                        next_id, kind, entry["title"] or _host(url), url,
-                        result.exact_tokens, result.paraphrase_sentences, len(entry["phrases"]),
-                    )
-                )
-                next_id += 1
-                for k in entry["phrases"]:
-                    p = phrases[k]
-                    if any(i in result.exact_tokens for i in range(p.tok_start, p.tok_end)):
-                        phrase_rows[k]["found"] = True
+            )
+            for k in entry["phrases"]:
+                p = phrases[k]
+                if any(i in result.exact_tokens for i in range(p.tok_start, p.tok_end)):
+                    phrase_rows[k]["found"] = True
 
     # ---------------------------------------------------------- baza lokalna
     if options["local"] and references is not None:
         progress(72, "Porównanie z bazą lokalną")
+        if hasattr(references, "load"):
+            doc_hashes = set(kgram_hashes([t.folded for t in doc.tokens]))
+            refs, mode = references.load(doc_hashes)
+        else:
+            refs, mode = references, "full"
         checked = 0
-        for ref in references:
+        for ref in refs:
             checked += 1
-            result = compare(
-                index, ref["text"], paraphrase_threshold=settings.paraphrase_threshold, min_run=min_run
-            )
+            result = compare(index, ref["text"], **compare_kw)
             if not result.is_empty:
                 sources.append(
-                    SourceHit(next_id, "local", ref["name"], None, result.exact_tokens, result.paraphrase_sentences)
+                    SourceHit(len(sources) + 1, "local", ref["name"], None, result.exact_tokens,
+                              result.paraphrase_sentences, 0, result.semantic_sentences)
                 )
-                next_id += 1
         search_info["local_documents"] = checked
+        search_info["local_mode"] = mode
+        if mode == "index":
+            warnings.append(
+                "Baza lokalna jest duża — porównano tylko dokumenty ze wspólnymi fragmentami "
+                "(indeks odcisków). Parafrazy bez wspólnych fragmentów mogą zostać pominięte."
+            )
 
     # --------------------------------------------------------------- AI
     ai = None
@@ -176,14 +218,8 @@ def run_analysis(
 
     progress(95, "Generowanie raportu")
     return build_report(
-        doc=doc,
-        filename=filename,
-        sources=sources,
-        phrases=phrase_rows,
-        ai=ai,
-        options=options,
-        warnings=warnings,
-        search_info=search_info,
+        doc=doc, filename=filename, sources=sources, phrases=phrase_rows, ai=ai,
+        options=options, warnings=warnings, search_info=search_info,
     )
 
 

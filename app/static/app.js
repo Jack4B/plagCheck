@@ -35,6 +35,8 @@ function h(tag, attrs = {}, ...children) {
   return el;
 }
 const fmtDate = (iso) => (iso ? new Date(iso).toLocaleString("pl-PL", { dateStyle: "short", timeStyle: "short" }) : "");
+const SOURCE_NAMES = { brave: "Brave Search", serper: "Google (Serper)", serpapi: "Google (SerpAPI)", wikipedia: "Wikipedia", openalex: "OpenAlex (publikacje naukowe)" };
+const KIND_LABELS = { web: "internet", wikipedia: "wikipedia", scholar: "publikacja naukowa", local: "baza lokalna" };
 const level = (p) => (p === null || p === undefined ? "" : p >= 40 ? "high" : p >= 15 ? "mid" : "low");
 const aiLevel = (p) => (p === null || p === undefined ? "" : p >= 65 ? "high" : p >= 35 ? "mid" : "low");
 
@@ -167,9 +169,10 @@ function renderNew() {
     ),
   );
 
-  const providerInfo = health?.search_provider
-    ? `Wyszukiwarka: ${health.search_provider}.`
-    : "Wyszukiwarka nie jest skonfigurowana — raport zawiera frazy kontrolne z linkami do ręcznego sprawdzenia.";
+  const sources = (health?.search_sources || []).map((n) => SOURCE_NAMES[n] || n);
+  const providerInfo = sources.length
+    ? `Źródła: ${sources.join(", ")}${health.profile === "full" ? " · wykrywanie parafraz synonimicznych włączone" : ""}.`
+    : "Wyszukiwanie w sieci jest wyłączone — raport zawiera frazy kontrolne z linkami do ręcznego sprawdzenia.";
   view.append(
     h("h1", {}, "Sprawdź pracę przed oddaniem"),
     h("p", { class: "muted" }, "Wykrywa jawne zapożyczenia, bliskie parafrazy i cechy typowe dla tekstów generowanych przez AI. ", providerInfo),
@@ -235,7 +238,7 @@ function renderReport(job, r) {
   const kpis = h("div", { class: "kpis" },
     kpi("Podobieństwo", `${sim.percent}%`, `dokładne ${sim.exact_percent}% · parafrazy ${sim.paraphrase_percent}%`, level(sim.percent)),
     kpi("Prawdopodobieństwo AI", ai.percent == null ? "—" : `${ai.percent}%`, ai.label ? `${ai.label} · pewność: ${ai.confidence}` : "wyłączone", aiLevel(ai.percent)),
-    kpi("Źródła", String(r.sources.length), r.search?.provider ? `${r.search.provider}: ${r.search.queries_sent} zapytań, ${r.search.pages_fetched} stron` : "bez wyszukiwarki"),
+    kpi("Źródła", String(r.sources.length), r.search?.providers?.length ? `${r.search.queries_sent} zapytań · ${r.search.pages_fetched} stron` : "bez wyszukiwania w sieci"),
     kpi("Słowa", String(r.stats.words), `wyłączone z analizy: ${r.stats.excluded_words}`),
   );
   const warnings = (r.warnings || []).map((w) => h("div", { class: "alert warn" }, w));
@@ -358,14 +361,14 @@ function sourcesPanel(r) {
   const list = h("div", { class: "source-list" }, r.sources.map((s) => h("div", { class: "source" },
     h("div", { class: "num" }, String(s.id)),
     h("div", { style: { minWidth: "0" } },
-      h("div", { class: "title" }, s.title, " ", h("span", { class: "badge" }, s.kind === "local" ? "baza lokalna" : s.kind)),
+      h("div", { class: "title" }, s.title, " ", h("span", { class: "badge" }, KIND_LABELS[s.kind] || s.kind)),
       s.url ? h("a", { class: "url", href: s.url, target: "_blank", rel: "noopener noreferrer" }, s.url) : h("div", { class: "url" }, "plik referencyjny"),
       h("div", { class: "small muted" }, `wspólne słowa: ${s.matched_words} · zdania-parafrazy: ${s.paraphrases}`),
     ),
     h("div", { class: "pct" }, `${s.percent}%`),
   )));
   const paras = (r.paraphrases || []).slice(0, 30).map((p) => h("div", { class: "reason" },
-    h("div", { class: "small muted" }, `Źródło [${p.source}] · podobieństwo ${(p.score * 100).toFixed(0)}%`),
+    h("div", { class: "small muted" }, `Źródło [${p.source}] · podobieństwo ${(p.score * 100).toFixed(0)}% · ${p.method === "semantic" ? "znaczeniowe (synonimy)" : "leksykalne"}`),
     h("div", {}, "Twój tekst: „", p.sentence, "”"),
     h("div", { class: "muted" }, "Źródło: „", p.source_excerpt, "”"),
   ));

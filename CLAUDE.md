@@ -8,19 +8,20 @@
 **Hosting:** CT8.pl (MyDevil, FreeBSD) — self-hosted, Passenger.
 **Konspekt:** `docs/konspekt.md`. Skill cyklu życia: `.claude/skills/plagiarism-detector-lifecycle/`.
 
-## Stan (v1.0.0)
+## Stan (v1.1.0)
 
-Etapy 1–6 konspektu zrealizowane w wersji „lekkiej” (MVP pod CT8):
-ekstrakcja, frazy + linki Google, wyszukiwarka API z cache, baza lokalna, parafrazy (TF-IDF),
-detekcja AI (stylometria + reguły), UI z podświetleniami, historia, eksport HTML/druk PDF,
-wykluczanie cytatów/bibliografii, paczka instalacyjna CT8.
+Etapy 1–6 konspektu zrealizowane. **Koncepcja v1.1** (`docs/KONCEPCJA.md`): dwa profile jednej bazy kodu —
+**lite** (CT8, Passenger, czysty Python) i **full** (Docker/VPS, + parafrazy synonimiczne przez embeddingi);
+źródła przeszukiwane równolegle (web API + Wikipedia + OpenAlex); baza lokalna z indeksem winnowing.
 
 ## Stos technologiczny (faktyczny)
 
 - **Backend:** Python 3.11+ / FastAPI 0.115 + **pydantic v1** (czysty Python — v2 wymaga kompilacji Rusta na FreeBSD)
 - **Uruchamianie na CT8:** Passenger (`passenger_wsgi.py`, ASGI→WSGI przez `a2wsgi`) + cron `python -m app.worker run`
 - **NLP:** własne, lekkie — tokenizacja, składanie diakrytyków, stemmer regułowy PL, TF-IDF; opcjonalnie `simplemma`
-- **Wyszukiwanie:** Brave / Serper / SerpAPI / Wikipedia (urllib, bez dodatkowych zależności)
+- **Wyszukiwanie:** Brave / Serper / SerpAPI + Wikipedia + OpenAlex — równolegle (urllib)
+- **Baza lokalna:** odciski winnowing (MOSS) w tabeli `ref_fingerprints` zamiast Elasticsearch/FAISS
+- **Profil full:** sentence-transformers (`paraphrase-multilingual-MiniLM-L12-v2`), torch CPU — `requirements-full.txt`, `Dockerfile`
 - **Pliki:** zipfile + xml.etree (DOCX/ODT), pypdf (PDF)
 - **Baza:** SQLAlchemy Core — SQLite (domyślnie) lub MySQL (PyMySQL)
 - **Frontend:** vanilla JS (ES modules) + CSS, bez kroku budowania, CSP `script-src 'self'`
@@ -42,14 +43,16 @@ uvicorn app.main:app --reload
 pytest
 
 # paczka + wdrożenie
-./scripts/build_package.sh                         # dist/plagcheck-ct8-<wersja>.tar.gz
+./scripts/build_package.sh                         # dist/plagcheck-ct8-<wersja>.tar.gz (lite)
 ./deploy/ct8/deploy.sh LOGIN sN.ct8.pl [DOMENA]    # scp + ssh install.sh
+docker compose up -d --build                       # profil full na VPS
 
 # na serwerze CT8
 devil www restart DOMENA
 tail -50 ~/domains/DOMENA/logs/error.log
 cd ~/domains/DOMENA/public_python && ~/.virtualenvs/plagcheck/bin/python -m app.worker run
 ~/.virtualenvs/plagcheck/bin/python -m app.worker import-refs KATALOG   # baza wspólna
+~/.virtualenvs/plagcheck/bin/python -m app.worker reindex               # odciski bazy (migracja z 1.0)
 ```
 
 ## Struktura
@@ -60,7 +63,7 @@ app/pipeline.py        orkiestracja analizy
 app/jobs.py, worker.py zadania w tle (wątek / cron), CLI
 app/db.py              tabele: jobs, reference_docs, search_cache
 app/services/          extractor, preprocessor, textutils, phrases, web_search,
-                       similarity, ai_detector, report
+                       fingerprints, similarity, semantic, ai_detector, report
 app/static/            frontend
 deploy/ct8/            install.sh (na serwerze), deploy.sh (lokalnie)
 scripts/build_package.sh
@@ -77,7 +80,8 @@ Nie istnieje publiczne API do wyszukiwania treści prac. Aplikacja **nie może**
 - Dokumenty użytkowników są tymczasowe: tekst kasowany po analizie, raport wygasa (`REPORT_TTL_HOURS`).
 - Baza lokalna tylko za wyraźną zgodą (checkbox + walidacja w API).
 - Obsługa języka polskiego jest obowiązkowa (diakrytyki, skróty, stemming).
-- Nowe zależności: tylko czysto-pythonowe (sprawdź `pip download --platform any --only-binary=:all:`).
+- Nowe zależności rdzenia: tylko czysto-pythonowe (sprawdź `pip download --platform any --only-binary=:all:`).
+  Ciężkie biblioteki wyłącznie w `requirements-full.txt`, importowane leniwie, z degradacją do lite.
 - Małe, testowalne zmiany; testy muszą przechodzić na pydantic v1 i v2.
 - Frontend: bez `innerHTML` z danymi i bez stylów inline w HTML (CSP).
 - Po większym etapie aktualizuj ten plik + `docs/solutions/` + `docs/CONCEPTS.md`.
@@ -87,11 +91,12 @@ Nie istnieje publiczne API do wyszukiwania treści prac. Aplikacja **nie może**
 1. Ten plik (CLAUDE.md)
 2. `docs/solutions/` — baza rozwiązanych problemów
 3. `docs/CONCEPTS.md` — słownik pojęć
-4. `docs/DEPLOY_CT8.md` — wdrożenie
+4. `docs/KONCEPCJA.md` — decyzje architektoniczne v1.1
+5. `docs/DEPLOY_CT8.md`, `docs/DEPLOY_DOCKER.md` — wdrożenie
 
 ## Disclaimer
 
 Aplikacja służy wyłącznie do samokontroli. Nie może być używana do omijania systemów uczelnianych.
 
 ---
-*Ostatnia aktualizacja: 21 listopada 2026 — v1.0.0: pełne MVP + paczka CT8.*
+*Ostatnia aktualizacja: 21 listopada 2026 — v1.1.0: profile lite/full, wiele źródeł, indeks winnowing.*

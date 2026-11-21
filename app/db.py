@@ -15,7 +15,9 @@ from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 
 from sqlalchemy import (
+    BigInteger,
     Column,
+    Index,
     DateTime,
     Integer,
     MetaData,
@@ -69,6 +71,16 @@ reference_docs = Table(
     Column("text", LongText, nullable=False),
     Column("words", Integer, nullable=False),
     Column("created_at", DateTime, nullable=False),
+)
+
+# Odciski winnowing dokumentów bazy lokalnej (szybkie wyszukiwanie kandydatów).
+ref_fingerprints = Table(
+    "ref_fingerprints",
+    metadata,
+    Column("ref_id", Integer, nullable=False),
+    Column("hash", BigInteger, nullable=False),
+    Index("ix_ref_fingerprints_hash", "hash"),
+    Index("ix_ref_fingerprints_ref", "ref_id"),
 )
 
 search_cache = Table(
@@ -255,6 +267,14 @@ def cleanup_expired(cache_hours: int) -> dict:
 # ------------------------------------------------------------ reference docs
 
 
+def _insert_fingerprints(conn, ref_id: int, text: str) -> None:
+    from .services.fingerprints import text_fingerprints
+
+    rows = [{"ref_id": ref_id, "hash": h} for h in text_fingerprints(text)]
+    for i in range(0, len(rows), 5000):
+        conn.execute(insert(ref_fingerprints), rows[i:i + 5000])
+
+
 def add_reference(owner: str, name: str, text: str) -> int:
     with get_engine().begin() as conn:
         res = conn.execute(
@@ -262,7 +282,47 @@ def add_reference(owner: str, name: str, text: str) -> int:
                 owner=owner, name=name[:255], text=text, words=len(text.split()), created_at=utcnow()
             )
         )
-        return int(res.inserted_primary_key[0])
+        ref_id = int(res.inserted_primary_key[0])
+        _insert_fingerprints(conn, ref_id, text)
+        return ref_id
+
+
+def index_missing_fingerprints() -> int:
+    """Indeksuje dokumenty bez odcisków (np. dodane przed wersją 1.1)."""
+    indexed = select(ref_fingerprints.c.ref_id).distinct()
+    with get_engine().connect() as conn:
+        missing = [
+            r[0] for r in conn.execute(
+                select(reference_docs.c.id).where(reference_docs.c.id.not_in(indexed))
+            )
+        ]
+    for ref_id in missing:
+        with get_engine().begin() as conn:
+            text = conn.execute(select(reference_docs.c.text).where(reference_docs.c.id == ref_id)).scalar()
+            if text:
+                _insert_fingerprints(conn, ref_id, text)
+    return len(missing)
+
+
+def candidate_references(owner: str, hashes: set[int], limit: int = 30, min_hits: int = 2) -> list[int]:
+    """Dokumenty bazy lokalnej dzielące z tekstem najwięcej odcisków (najlepsze najpierw)."""
+    if not hashes:
+        return []
+    visible = select(reference_docs.c.id).where(or_(reference_docs.c.owner == owner, reference_docs.c.owner == ""))
+    counts: dict[int, int] = {}
+    values = list(hashes)
+    with get_engine().connect() as conn:
+        for i in range(0, len(values), 500):
+            q = (
+                select(ref_fingerprints.c.ref_id, func.count())
+                .where(ref_fingerprints.c.hash.in_(values[i:i + 500]))
+                .where(ref_fingerprints.c.ref_id.in_(visible))
+                .group_by(ref_fingerprints.c.ref_id)
+            )
+            for ref_id, n in conn.execute(q):
+                counts[ref_id] = counts.get(ref_id, 0) + n
+    ranked = sorted((r for r, n in counts.items() if n >= min_hits), key=lambda r: -counts[r])
+    return ranked[:limit]
 
 
 def list_references(owner: str) -> list[dict]:
@@ -276,9 +336,10 @@ def list_references(owner: str) -> list[dict]:
         return [dict(r) for r in conn.execute(q).mappings()]
 
 
-def iter_references(owner: str):
+def iter_references(owner: str, ids: list[int] | None = None):
     """Generator — referencje wczytywane pojedynczo (oszczędność RAM)."""
-    ids = [r["id"] for r in list_references(owner)]
+    if ids is None:
+        ids = [r["id"] for r in list_references(owner)]
     for ref_id in ids:
         with get_engine().connect() as conn:
             row = conn.execute(
@@ -294,6 +355,8 @@ def delete_reference(ref_id: int, owner: str) -> bool:
         res = conn.execute(
             delete(reference_docs).where(and_(reference_docs.c.id == ref_id, reference_docs.c.owner == owner))
         )
+        if res.rowcount:
+            conn.execute(delete(ref_fingerprints).where(ref_fingerprints.c.ref_id == ref_id))
         return res.rowcount > 0
 
 

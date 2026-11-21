@@ -40,7 +40,7 @@ def client():
 @pytest.fixture
 def fake_provider(monkeypatch):
     provider = FakeProvider()
-    monkeypatch.setattr(jobs, "provider_factory", lambda settings: provider)
+    monkeypatch.setattr(jobs, "providers_factory", lambda settings: [provider])
     return provider
 
 

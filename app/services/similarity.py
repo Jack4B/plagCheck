@@ -27,6 +27,7 @@ class SourceAnalysis:
 class MatchResult:
     exact_tokens: set[int] = field(default_factory=set)
     paraphrase_sentences: dict[int, tuple[float, str]] = field(default_factory=dict)
+    semantic_sentences: set[int] = field(default_factory=set)  # wykryte przez embeddingi
 
     @property
     def is_empty(self) -> bool:
@@ -64,6 +65,18 @@ class DocumentIndex:
             [t.stem for t in doc.tokens[s.tok_start:s.tok_end] if is_content_word(t.folded)]
             for s in doc.sentences
         ]
+        self._vectors: dict[int, object] = {}
+
+    def sentence_vectors(self, encoder, indices: list[int]):
+        """Embeddingi zdań dokumentu — liczone raz i współdzielone przez wszystkie źródła."""
+        import numpy as np
+
+        missing = [i for i in indices if i not in self._vectors]
+        if missing:
+            vecs = encoder.encode([" ".join(self.doc.sentence_text(self.doc.sentences[i]).split()) for i in missing])
+            for i, v in zip(missing, vecs):
+                self._vectors[i] = v
+        return np.stack([self._vectors[i] for i in indices])
 
 
 def exact_matches(
@@ -189,12 +202,41 @@ def paraphrase_matches(
     return result
 
 
+def semantic_matches(
+    index: DocumentIndex,
+    source: SourceAnalysis,
+    source_text: str,
+    encoder,
+    threshold: float,
+    skip: set[int],
+) -> dict[int, tuple[float, str]]:
+    from .semantic import MAX_SOURCE_SENTENCES, best_matches
+
+    doc = index.doc
+    doc_idx = [
+        i for i, stems in enumerate(index.sentence_stems)
+        if doc.sentences[i].excluded is None and len(stems) >= 5 and i not in skip
+    ]
+    src_idx = [j for j, stems in enumerate(source.sentence_stems) if len(stems) >= 4][:MAX_SOURCE_SENTENCES]
+    if not doc_idx or not src_idx:
+        return {}
+    doc_vecs = index.sentence_vectors(encoder, doc_idx)
+    src_texts = [" ".join(source_text[a:b].split()) for a, b in (source.sentence_spans[j] for j in src_idx)]
+    src_vecs = encoder.encode(src_texts)
+    return {
+        doc_idx[di]: (round(score, 3), src_texts[sj][:400])
+        for di, sj, score in best_matches(doc_vecs, src_vecs, threshold)
+    }
+
+
 def compare(
     index: DocumentIndex,
     source_text: str,
     *,
     paraphrase_threshold: float = 0.6,
     min_run: int = 8,
+    encoder=None,
+    semantic_threshold: float = 0.8,
 ) -> MatchResult:
     source = analyze_source(source_text)
     exact = exact_matches(index, source, min_run=min_run)
@@ -206,4 +248,9 @@ def compare(
     para = paraphrase_matches(
         index, source, source_text, threshold=paraphrase_threshold, skip_sentences=covered
     )
-    return MatchResult(exact, para)
+    semantic: set[int] = set()
+    if encoder is not None:
+        sem = semantic_matches(index, source, source_text, encoder, semantic_threshold, covered | set(para))
+        para.update(sem)
+        semantic = set(sem)
+    return MatchResult(exact, para, semantic)

@@ -28,22 +28,22 @@ INSTALL_ARGS="--force-domain" ./deploy/ct8/deploy.sh LOGIN sN.ct8.pl
 
 Skrypt buduje paczkę, wysyła ją przez `scp` i uruchamia instalator przez `ssh`.
 
-## Instalacja ręczna (gotowa paczka `plagcheck-ct8-1.0.0.tar.gz`)
+## Instalacja ręczna (gotowa paczka `plagcheck-ct8-1.1.0.tar.gz`)
 
 ```bash
 # 1) wgranie paczki na serwer
-scp plagcheck-ct8-1.0.0.tar.gz LOGIN@sN.ct8.pl:
+scp plagcheck-ct8-1.1.0.tar.gz LOGIN@sN.ct8.pl:
 
 # 2) rozpakowanie i instalacja
 ssh LOGIN@sN.ct8.pl
-tar -xzf plagcheck-ct8-1.0.0.tar.gz
-bash plagcheck-ct8-1.0.0/install.sh LOGIN.ct8.pl
+tar -xzf plagcheck-ct8-1.1.0.tar.gz
+bash plagcheck-ct8-1.1.0/install.sh LOGIN.ct8.pl
 ```
 
 Albo w jednej linii:
 
 ```bash
-scp plagcheck-ct8-1.0.0.tar.gz LOGIN@sN.ct8.pl: && ssh -t LOGIN@sN.ct8.pl 'tar -xzf plagcheck-ct8-1.0.0.tar.gz && bash plagcheck-ct8-1.0.0/install.sh LOGIN.ct8.pl'
+scp plagcheck-ct8-1.1.0.tar.gz LOGIN@sN.ct8.pl: && ssh -t LOGIN@sN.ct8.pl 'tar -xzf plagcheck-ct8-1.1.0.tar.gz && bash plagcheck-ct8-1.1.0/install.sh LOGIN.ct8.pl'
 ```
 
 Instalator wypisze adres strony i **wygenerowany klucz dostępu** (wpisujesz go raz
@@ -77,7 +77,8 @@ Najważniejsze zmienne (pełna lista w `.env.example`):
 | Zmienna | Opis |
 |---------|------|
 | `ACCESS_KEY` | klucz dostępu (pusty = otwarty dostęp — niezalecane, limity API!) |
-| `SEARCH_PROVIDER` | `auto` / `brave` / `serper` / `serpapi` / `wikipedia` / `none` |
+| `SEARCH_PROVIDER` | `auto` / `brave` / `serper` / `serpapi` / `wikipedia` / `none` (none = bez sieci) |
+| `SEARCH_WIKIPEDIA`, `SEARCH_OPENALEX` | darmowe źródła przeszukiwane równolegle (domyślnie włączone) |
 | `BRAVE_API_KEY` | [Brave Search API](https://brave.com/search/api/) — darmowy plan ~2000 zapytań/mies. |
 | `SERPER_API_KEY` | [serper.dev](https://serper.dev) — wyniki Google |
 | `SERPAPI_API_KEY` | [serpapi.com](https://serpapi.com) |
@@ -85,9 +86,12 @@ Najważniejsze zmienne (pełna lista w `.env.example`):
 | `REPORT_TTL_HOURS` | po ilu godzinach raporty są usuwane (domyślnie 72) |
 | `DATABASE_URL` | pusty = SQLite; MySQL — patrz niżej |
 
-Bez klucza API aplikacja przeszukuje **polską Wikipedię** (darmowe API) oraz
-**bazę lokalną**, a raport zawiera frazy kontrolne z linkami do ręcznego
-sprawdzenia w Google.
+Bez klucza API aplikacja przeszukuje **polską Wikipedię** i **OpenAlex** (publikacje
+naukowe) oraz **bazę lokalną**, a raport zawiera frazy kontrolne z linkami do ręcznego
+sprawdzenia w Google. Klucz Brave/Serper/SerpAPI dodaje wyniki z całego internetu.
+
+Profil CT8 to **lite** — parafrazy synonimiczne (embeddingi) wymagają profilu full
+w Dockerze na VPS (`docs/DEPLOY_DOCKER.md`).
 
 ## MySQL zamiast SQLite (opcjonalnie)
 
@@ -135,6 +139,7 @@ cd ~/domains/DOMENA/public_python
   zajmuje ~60 MB RSS i <1 s CPU (bez sieci). Równolegle maks. 2 analizy na proces.
 - **Procesy**: brak stałego procesu — Passenger uruchamia aplikację na żądanie,
   a cron dokańcza zadania przerwane przez ubicie bezczynnego procesu.
+- **Baza lokalna**: indeks odcisków winnowing — 300 dokumentów (1,5 mln słów) przeszukiwane w ~3 s.
 - **Dysk (3 GB)**: aplikacja + virtualenv ≈ 25 MB. Raporty wygasają automatycznie.
 - **Ciężkie modele** (spaCy `pl_core_news_lg`, sentence-transformers/torch) nie
   mieszczą się w limitach — zastąpione lekkim stemmerem i TF-IDF (patrz `docs/solutions/`).

@@ -1,0 +1,24 @@
+# PlagCheck na VPS (np. Oracle Cloud Always Free ARM, Hetzner CX22, Mikr.us).
+#   cp .env.example .env    # ustaw ACCESS_KEY i ewentualne klucze API
+#   docker compose up -d --build
+# Aplikacja nasłuchuje na 127.0.0.1:8000 — wystaw ją przez reverse proxy z HTTPS
+# (np. Caddy: `caddy reverse-proxy --from twojadomena.pl --to 127.0.0.1:8000`).
+services:
+  plagcheck:
+    build:
+      context: .
+      args:
+        PROFILE: ${PLAGCHECK_PROFILE:-full}
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+      WORKER_MODE: thread
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - plagcheck-data:/data
+    restart: unless-stopped
+    mem_limit: 3g
+
+volumes:
+  plagcheck-data:

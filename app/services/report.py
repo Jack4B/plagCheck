@@ -19,6 +19,7 @@ DISCLAIMER = (
 
 LABEL_NONE, LABEL_EXACT, LABEL_PARA, LABEL_EXCLUDED = 0, 1, 2, 3
 LABEL_NAMES = {LABEL_NONE: "plain", LABEL_EXACT: "exact", LABEL_PARA: "paraphrase", LABEL_EXCLUDED: "excluded"}
+KIND_LABELS = {"web": "internet", "wikipedia": "Wikipedia", "scholar": "publikacja naukowa", "local": "baza lokalna"}
 EXCLUDED_NAMES = {
     "quote": "cytat",
     "bibliography": "bibliografia",
@@ -36,6 +37,7 @@ class SourceHit:
     exact_tokens: set[int] = field(default_factory=set)
     paraphrases: dict[int, tuple[float, str]] = field(default_factory=dict)
     queries_matched: int = 0
+    semantic: set[int] = field(default_factory=set)
 
 
 def _token_labels(doc: Document, sources: list[SourceHit]):
@@ -150,6 +152,7 @@ def build_report(
             paraphrase_details.append(
                 {
                     "source": src.id,
+                    "method": "semantic" if s_idx in src.semantic else "tfidf",
                     "score": score,
                     "sentence": " ".join(doc.sentence_text(doc.sentences[s_idx]).split())[:400],
                     "source_excerpt": excerpt,
@@ -231,7 +234,7 @@ def report_to_html(report: dict) -> str:
         for s in report["sources"]:
             link = f"<a href='{e(s['url'])}'>{e(s['title'])}</a><br><span class='muted'>{e(s['url'])}</span>" if s["url"] else e(s["title"])
             parts.append(
-                f"<tr><td>{s['id']}</td><td>{link} <span class='muted'>({e(s['kind'])})</span></td>"
+                f"<tr><td>{s['id']}</td><td>{link} <span class='muted'>({e(KIND_LABELS.get(s['kind'], s['kind']))})</span></td>"
                 f"<td>{s['percent']}%</td><td>{s['matched_words']}</td><td>{s['paraphrases']}</td></tr>"
             )
         parts.append("</table>")

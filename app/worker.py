@@ -2,6 +2,7 @@
 
   python -m app.worker run            # wykonaj zaległe zadania (+ sprzątanie)
   python -m app.worker cleanup        # usuń wygasłe raporty i cache
+  python -m app.worker reindex        # zbuduj brakujące odciski bazy lokalnej
   python -m app.worker import-refs DIR [--owner TOKEN]
                                       # dodaj pliki z katalogu do bazy lokalnej
                                       # (bez --owner: baza wspólna dla wszystkich)
@@ -38,6 +39,7 @@ def cmd_run(args) -> int:
         return 0
     settings = get_settings()
     print("cleanup:", db.cleanup_expired(settings.search_cache_hours))
+    print("zaindeksowano dokumentów bazy:", db.index_missing_fingerprints())
     # w trybie 'thread' dajemy procesowi WWW 60 s na samodzielne podjęcie zadania
     grace = 60 if settings.worker_mode == "thread" else 0
     print("zadania wykonane:", process_pending(grace_seconds=grace))
@@ -46,6 +48,11 @@ def cmd_run(args) -> int:
 
 def cmd_cleanup(args) -> int:
     print(db.cleanup_expired(get_settings().search_cache_hours))
+    return 0
+
+
+def cmd_reindex(args) -> int:
+    print("zaindeksowano dokumentów bazy:", db.index_missing_fingerprints())
     return 0
 
 
@@ -75,6 +82,7 @@ def main(argv=None) -> int:
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("run").set_defaults(func=cmd_run)
     sub.add_parser("cleanup").set_defaults(func=cmd_cleanup)
+    sub.add_parser("reindex").set_defaults(func=cmd_reindex)
     imp = sub.add_parser("import-refs")
     imp.add_argument("directory")
     imp.add_argument("--owner", default="", help="token właściciela (puste = baza wspólna)")
