@@ -60,6 +60,21 @@ Zakładka **Ustawienia**:
 | Baza lokalna z indeksem odcisków | Twoje wcześniejsze prace i materiały |
 | Detekcja AI | cechy stylu typowe dla modeli językowych (z uzasadnieniem) |
 
+## Artykuły z portali (Onet, WP, Interia…)
+
+Wikipedia i OpenAlex nie przeszukują portali informacyjnych. Żeby PlagCheck znalazł fragment
+przepisany z artykułu, potrzebny jest klucz **Serper** (Google) albo **Brave** w Ustawieniach.
+Serper daje 2 500 darmowych zapytań na start. Praca na ok. 1 500 słów zużywa ok. 40,
+a ponowne sprawdzenie tej samej pracy bierze wyniki z pamięci i nie zużywa limitu.
+
+Gdy portal nie oddaje strony programowi, PlagCheck:
+- bierze pełną treść artykułu z danych, które portal osadza dla Google (JSON-LD),
+- porównuje fragment z wyników wyszukiwania (Google pokazuje w nim znalezioną frazę),
+- pobiera kopię strony z Internet Archive (ustawienie *Strony niedostępne: maks. kopii*).
+
+Przy takim źródle raport pokazuje dopisek „kopia z Internet Archive” albo „tylko fragment
+z wyników wyszukiwania”.
+
 ## „Źródło ograniczyło liczbę zapytań” (HTTP 429)
 
 Wikipedia i OpenAlex liczą limity **na adres IP**. Prawdziwy VPN zmieniający adres (np. AdGuard

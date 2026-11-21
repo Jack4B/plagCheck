@@ -30,3 +30,6 @@
 | **Oracle Always Free / A1** | Darmowe zasoby Oracle Cloud; Ampere A1 = maszyny ARM (do 4 OCPU / 24 GB). Główny hosting od v1.2. |
 | **Security List** | Zapora sieci VCN w konsoli Oracle — niezależna od zapory w systemie; obie muszą przepuszczać 80/443. |
 | **sslip.io** | Darmowy DNS: `1-2-3-4.sslip.io` wskazuje na IP 1.2.3.4 — HTTPS bez własnej domeny. |
+| **JSON-LD (`articleBody`)** | Dane strukturalne, które portale osadzają w stronie dla Google: pełna treść artykułu, nawet gdy na stronie widać tylko zajawkę. PlagCheck dokłada ją do tekstu strony, jeśli jej tam brakuje. |
+| **Kopia z Internet Archive** | Gdy strona z trafieniem frazy nie odpowiada, PlagCheck pobiera jej ostatnią kopię z Wayback Machine (`ARCHIVE_MAX_PAGES`, limit 45 s). W raporcie źródło ma dopisek „kopia z Internet Archive”. |
+| **Snippet jako dowód** | Fragment strony z wyników wyszukiwarki. Zawsze trafia do porównania razem ze stroną; gdy strona nie odpowiada, jest jedynym materiałem („tylko fragment z wyników wyszukiwania”). |

@@ -93,7 +93,7 @@ def cmd_import_refs(args) -> int:
         db.add_reference(args.owner, path.name, text)
         count += 1
         print(f"dodano {path.name} ({len(text.split())} słów)")
-    print(f"Zaimportowano {count} plików.")
+    print(f"Zaimportowano plików: {count}.")
     return 0
 
 

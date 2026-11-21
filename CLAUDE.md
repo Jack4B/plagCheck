@@ -9,7 +9,7 @@
 Alternatywa: CT8.pl (MyDevil, FreeBSD, Passenger, profil lite).
 **Konspekt:** `docs/konspekt.md`. Skill cyklu życia: `.claude/skills/plagiarism-detector-lifecycle/`.
 
-## Stan (v1.4.7)
+## Stan (v1.4.8)
 
 Etapy 1–6 konspektu zrealizowane. **Koncepcja v1.1** (`docs/KONCEPCJA.md`): dwa profile jednej bazy kodu —
 **lite** (CT8, Passenger, czysty Python) i **full** (Docker/VPS, + parafrazy synonimiczne przez embeddingi);
@@ -20,6 +20,8 @@ paczka `plagcheck-oracle-<wersja>.tar.gz`, `deploy/oracle/deploy.sh IP`.
 model parafraz w czystym numpy (`app/services/minilm_numpy.py`), zapytania słowami kluczowymi,
 ustawienia w aplikacji (`/api/settings`, tylko MOBILE_MODE). Budowa APK: `.github/workflows/android.yml`.
 Skill pisania po polsku: `.claude/skills/polski-jak-czlowiek/` — używaj go do wszystkich tekstów PL.
+**v1.4.8:** portale informacyjne — treść z JSON-LD, snippety zawsze w porównaniu, kopie z Internet Archive
+(`docs/solutions/014`); sonda portali `scripts/probe_portals.py` (workflow „Sonda portali”), bo sesja nie ma wyjścia do portali.
 **Aktualizacje APK (Obtainium):** każda zmiana dla telefonu wymaga podbicia `__version__` w `app/__init__.py` —
 workflow publikuje wtedy GitHub Release `v<wersja>` z APK; bez podbicia Obtainium nie zobaczy aktualizacji.
 
