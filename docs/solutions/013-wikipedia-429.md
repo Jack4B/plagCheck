@@ -35,3 +35,12 @@ parafraz w numpy** (~31 zdań/s), nie tylko Wikipedia.
 (limity służą ochronie ich serwerów, grozi blokada), otwarte proxy to często przejęte urządzenia
 i punkty podsłuchu (przez nie szłyby frazy z pracy), większość jest martwa lub wolna — analiza
 byłaby wolniejsza i mniej przewidywalna. Więcej źródeł legalnie: klucz Brave/Serper/SerpAPI.
+
+## v1.4.4 — analiza nie może wisieć
+
+Na telefonie Wikipedia odmawiała uporczywie (prawdopodobnie limit na adres IP), a cierpliwe
+ponawianie z 1.4.1–1.4.3 (do 30 s × 3 na zapytanie) wyglądało jak zawieszenie („110/150”).
+- Bezpiecznik: po 2 krótkich ponowieniach (maks. 8 s) `RateLimited` → pozostałe zapytania do tego
+  źródła są pomijane, reszta źródeł działa dalej, raport ma ostrzeżenie.
+- Limit czasu na źródło: SOURCE_TIME_BUDGET (150 s), potem analiza idzie dalej z tym, co jest.
+- Diagnostyka w raporcie (`search.sources`): wykonane/planowane zapytania, błędy, powód zatrzymania.

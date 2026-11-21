@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Callable, Iterable, Protocol
 from urllib.parse import urlsplit
@@ -16,7 +17,7 @@ from .services.report import SourceHit, build_report
 from .services.semantic import SEMANTIC_MAX_SOURCES
 from .services.similarity import DocumentIndex, compare
 from .services.textutils import fold
-from .services.web_search import CachedSearcher, SearchError
+from .services.web_search import CachedSearcher, RateLimited, SearchError
 
 log = logging.getLogger("plagcheck.pipeline")
 
@@ -59,6 +60,8 @@ def _search_all(
     plans: dict[int, list[tuple[str, int | None]]],
     progress: Progress,
     warnings: list[str],
+    time_budget: float = 150.0,
+    stats: dict | None = None,
 ) -> list[tuple[CachedSearcher, int | None, list]]:
     """Każde źródło przeszukuje swoją listę zapytań we własnym wątku (własny limit zapytań/s).
 
@@ -71,17 +74,39 @@ def _search_all(
 
     def run(searcher: CachedSearcher):
         found, errors = [], 0
-        for k, (query, phrase_idx) in enumerate(plans[id(searcher)]):
+        name = searcher.provider.name
+        plan = plans[id(searcher)]
+        st = {"planned": len(plan), "done": 0, "errors": 0, "stopped": None}
+        started = time.monotonic()
+        for k, (query, phrase_idx) in enumerate(plan):
             if stop.is_set():
+                break
+            if k and time.monotonic() - started > time_budget:
+                st["stopped"] = "limit czasu"
+                with lock:
+                    warnings.append(f"Źródło „{name}”: przekroczono limit czasu — wykonano {k} z {len(plan)} zapytań.")
                 break
             try:
                 found.append((searcher, phrase_idx, searcher.search(query)))
+                st["done"] += 1
+            except RateLimited as exc:
+                st["errors"] += 1
+                st["stopped"] = "ograniczenie liczby zapytań (429)"
+                log.warning("%s: %s", name, exc)
+                with lock:
+                    warnings.append(
+                        f"Źródło „{name}” ograniczyło liczbę zapytań — wykonano {k} z {len(plan)}, resztę pominięto. "
+                        "Spróbuj później albo dodaj klucz Brave w Ustawieniach."
+                    )
+                break
             except SearchError as exc:
+                st["errors"] += 1
                 errors += 1
                 log.warning("%s: %s", searcher.provider.name, exc)
                 if errors >= 3 and errors > k // 2:
                     with lock:
                         warnings.append(f"Źródło „{searcher.provider.name}” zwraca błędy ({exc}) — pominięto je.")
+                    st["stopped"] = "błędy"
                     break
             finally:
                 with lock:
@@ -91,6 +116,9 @@ def _search_all(
                     except Exception:
                         stop.set()
                         raise
+        if stats is not None:
+            with lock:
+                stats[name] = st
         return found
 
     with ThreadPoolExecutor(max_workers=len(searchers)) as pool:
@@ -175,7 +203,11 @@ def run_analysis(
             plan: list[tuple[str, int | None]] = [(p.query, k) for k, p in exact]
             plan += [(q.query, None) for q in keywords]
             plans[id(s)] = plan
-        for searcher, k, results in _search_all(searchers, plans, progress, warnings):
+        source_stats: dict = {}
+        search_info["sources"] = source_stats
+        for searcher, k, results in _search_all(
+            searchers, plans, progress, warnings, settings.source_time_budget, source_stats
+        ):
             folded_phrase = fold(phrases[k].text) if k is not None else None
             for r in results:
                 entry = url_hits.setdefault(

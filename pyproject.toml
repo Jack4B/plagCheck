@@ -1,6 +1,6 @@
 [project]
 name = "plagcheck"
-version = "1.4.3"
+version = "1.4.4"
 description = "Wstępne wykrywanie plagiatu i treści AI — samokontrola prac (self-hosted, CT8)"
 requires-python = ">=3.10"
 

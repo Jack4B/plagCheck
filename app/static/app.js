@@ -368,10 +368,22 @@ function textPanel(r, sourcesById) {
   return h("div", {}, modeSel, legend, docEl, detail);
 }
 
+// Diagnostyka wyszukiwania: ile zapytań wykonało każde źródło i dlaczego się zatrzymało.
+function searchStats(r) {
+  const stats = r.search?.sources;
+  if (!stats || !Object.keys(stats).length) return null;
+  return h("section", { class: "card", style: { marginTop: "16px" } }, h("h3", {}, "Przebieg wyszukiwania"),
+    Object.entries(stats).map(([name, st]) => h("div", { class: "reason small" },
+      h("b", {}, SOURCE_NAMES[name] || name), `: ${st.done} z ${st.planned} zapytań`,
+      st.errors ? ` · błędy: ${st.errors}` : "",
+      st.stopped ? h("span", { class: "muted" }, ` · zatrzymano: ${st.stopped}`) : null)));
+}
+
 function sourcesPanel(r) {
   if (!r.sources.length) {
-    return h("div", { class: "card empty" }, "Nie znaleziono pasujących źródeł.",
-      h("div", { class: "small" }, "Brak dopasowań nie gwarantuje braku plagiatu — wyszukiwanie obejmuje wybrane frazy i publiczne źródła."));
+    return h("div", {}, h("div", { class: "card empty" }, "Nie znaleziono pasujących źródeł.",
+      h("div", { class: "small" }, "Brak dopasowań nie gwarantuje braku plagiatu — wyszukiwanie obejmuje wybrane frazy i publiczne źródła.")),
+      searchStats(r));
   }
   const list = h("div", { class: "source-list" }, r.sources.map((s) => h("div", { class: "source" },
     h("div", { class: "num" }, String(s.id)),
@@ -387,7 +399,7 @@ function sourcesPanel(r) {
     h("div", {}, "Twój tekst: „", p.sentence, "”"),
     h("div", { class: "muted" }, "Źródło: „", p.source_excerpt, "”"),
   ));
-  return h("div", {}, list, paras.length ? h("section", { class: "card", style: { marginTop: "16px" } }, h("h3", {}, "Wykryte parafrazy"), paras) : null);
+  return h("div", {}, list, paras.length ? h("section", { class: "card", style: { marginTop: "16px" } }, h("h3", {}, "Wykryte parafrazy"), paras) : null, searchStats(r));
 }
 
 function aiPanel(ai) {

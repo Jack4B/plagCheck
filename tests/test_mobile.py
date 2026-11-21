@@ -104,3 +104,54 @@ def test_keyword_queries_find_sources_missed_by_exact_search(monkeypatch):
     assert any(not q.startswith('"') for q in wiki.queries)
     assert report["search"]["keyword_queries"] > 0
     assert report["sources"] and report["sources"][0]["kind"] == "wikipedia"
+
+
+class RateLimitedWiki(KeywordOnlyWiki):
+    def search(self, query):
+        from app.services.web_search import RateLimited
+
+        self.queries.append(query)
+        raise RateLimited("HTTP 429 od pl.wikipedia.org")
+
+
+class FastOpenAlex:
+    name = "openalex"
+    min_interval = 0.0
+
+    def __init__(self):
+        self.queries = []
+
+    def search(self, query):
+        self.queries.append(query)
+        return [SearchResult("https://doi.org/10.1/x", "Publikacja", "")]
+
+    def fetch_text(self, url):
+        return SOURCE_ARTICLE
+
+
+def _run_report(monkeypatch, providers):
+    monkeypatch.setattr(jobs, "providers_factory", lambda s: providers)
+    client = TestClient(app)
+    job = client.post("/api/check", data={"text": STUDENT_WITH_COPY, "options": json.dumps({"local": False})},
+                      headers=OWNER).json()
+    jobs.process_pending()
+    return client.get(f"/api/jobs/{job['id']}/report", headers=OWNER).json()
+
+
+def test_rate_limited_source_is_skipped_immediately(monkeypatch):
+    wiki, openalex = RateLimitedWiki(), FastOpenAlex()
+    report = _run_report(monkeypatch, [wiki, openalex])
+    assert len(wiki.queries) == 1  # bezpiecznik: po odmowie nie wysyłamy kolejnych zapytań
+    assert len(openalex.queries) > 1  # pozostałe źródła działają dalej
+    stats = report["search"]["sources"]
+    assert stats["wikipedia"]["stopped"].startswith("ograniczenie") and stats["openalex"]["stopped"] is None
+    assert any("ograniczyło liczbę zapytań" in w for w in report["warnings"])
+    assert report["sources"]  # wynik z OpenAlex nadal jest
+
+
+def test_source_time_budget_stops_slow_source(monkeypatch):
+    monkeypatch.setenv("SOURCE_TIME_BUDGET", "0")
+    openalex = FastOpenAlex()
+    report = _run_report(monkeypatch, [openalex])
+    assert len(openalex.queries) == 1
+    assert report["search"]["sources"]["openalex"]["stopped"] == "limit czasu"

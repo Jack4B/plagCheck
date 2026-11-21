@@ -33,8 +33,8 @@ USER_AGENT = "PlagCheck (self-hosted plagiarism self-check)"
 HOST_INTERVALS = {"wikipedia.org": 0.5, "api.openalex.org": 0.15, "api.search.brave.com": 1.1}
 MAX_INTERVAL = 4.0  # po kolejnych 429 odstęp rośnie ×2 do tej wartości
 RETRY_STATUSES = {429, 503}
-MAX_RETRIES = 3
-MAX_RETRY_WAIT = 30.0
+MAX_RETRIES = 2       # krótko: analiza jest interaktywna — lepiej pominąć źródło niż wisieć
+MAX_RETRY_WAIT = 8.0
 
 
 def user_agent() -> str:
@@ -126,6 +126,10 @@ class SearchError(RuntimeError):
     pass
 
 
+class RateLimited(SearchError):
+    """Serwer nadal odmawia (429/503) po ponowieniach — źródło należy pominąć w tej analizie."""
+
+
 # --------------------------------------------------------------------------- HTTP
 
 
@@ -205,6 +209,8 @@ def _get_json(url: str, headers: dict | None = None, timeout: float = 10.0, body
         except urllib.error.HTTPError as exc:
             if exc.code in RETRY_STATUSES:
                 _throttle.penalize(host or "")
+            if exc.code in RETRY_STATUSES and attempt >= MAX_RETRIES:
+                raise RateLimited(f"HTTP {exc.code} od {host} (ograniczenie liczby zapytań)") from exc
             if exc.code in RETRY_STATUSES and attempt < MAX_RETRIES:
                 # serwer prosi o zwolnienie — czekamy (Retry-After albo 2, 4, 8 s) i ponawiamy
                 retry_after = exc.headers.get("Retry-After") if exc.headers else None
