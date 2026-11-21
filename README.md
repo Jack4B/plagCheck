@@ -70,6 +70,11 @@ scp dist/plagcheck-ct8-1.3.0.tar.gz LOGIN@sN.ct8.pl: && ssh -t LOGIN@sN.ct8.pl '
 
 Szczegóły, MySQL, HTTPS, diagnostyka: **[docs/DEPLOY_CT8.md](docs/DEPLOY_CT8.md)**.
 
+## Aplikacja na Androida (bez serwera)
+
+Cała aplikacja w telefonie — także model parafraz synonimicznych. APK buduje GitHub Actions
+(*Actions → Android APK → Artifacts*). Instalacja i konfiguracja: **[docs/ANDROID.md](docs/ANDROID.md)**.
+
 ## Inny VPS z Dockerem
 
 Ten sam `setup.sh` działa na każdym Ubuntu/Debian/Oracle Linux — patrz [docs/DEPLOY_DOCKER.md](docs/DEPLOY_DOCKER.md).

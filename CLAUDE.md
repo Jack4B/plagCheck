@@ -9,13 +9,17 @@
 Alternatywa: CT8.pl (MyDevil, FreeBSD, Passenger, profil lite).
 **Konspekt:** `docs/konspekt.md`. Skill cyklu życia: `.claude/skills/plagiarism-detector-lifecycle/`.
 
-## Stan (v1.3.0)
+## Stan (v1.4.0)
 
 Etapy 1–6 konspektu zrealizowane. **Koncepcja v1.1** (`docs/KONCEPCJA.md`): dwa profile jednej bazy kodu —
 **lite** (CT8, Passenger, czysty Python) i **full** (Docker/VPS, + parafrazy synonimiczne przez embeddingi);
 źródła przeszukiwane równolegle (web API + Wikipedia + OpenAlex); baza lokalna z indeksem winnowing.
 **v1.2:** Oracle Cloud jako główny hosting — `deploy/oracle/setup.sh` (Docker + Caddy/HTTPS + zapora + kopie),
 paczka `plagcheck-oracle-<wersja>.tar.gz`, `deploy/oracle/deploy.sh IP`.
+**v1.4:** aplikacja na Androida (APK) — cały rdzeń w telefonie (Chaquopy + WebView, `app/mobile.py`),
+model parafraz w czystym numpy (`app/services/minilm_numpy.py`), zapytania słowami kluczowymi,
+ustawienia w aplikacji (`/api/settings`, tylko MOBILE_MODE). Budowa APK: `.github/workflows/android.yml`.
+Skill pisania po polsku: `.claude/skills/polski-jak-czlowiek/` — używaj go do wszystkich tekstów PL.
 
 ## Stos technologiczny (faktyczny)
 
@@ -83,6 +87,8 @@ app/db.py              tabele: jobs, reference_docs, search_cache
 app/services/          extractor, preprocessor, textutils, phrases, web_search,
                        fingerprints, similarity, semantic, ai_detector, report
 app/static/            frontend: landing.html/.css/.js (strona główna "/"), index.html + app.js (aplikacja "/app"), img/ (zrzuty, jasne i -dark)
+mobile/android/        projekt Androida (Kotlin MainActivity, Chaquopy); app/ i model kopiowane w CI
+mobile/model/          convert.py, verify.py — model MiniLM → numpy + weryfikacja z oryginałem
 deploy/oracle/         setup.sh (na serwerze), deploy.sh (lokalnie), Caddyfile
 deploy/ct8/            install.sh (na serwerze), deploy.sh (lokalnie)
 Dockerfile, docker-compose.yml   profil full/lite + Caddy (profil compose "https")
@@ -112,7 +118,7 @@ Nie istnieje publiczne API do wyszukiwania treści prac. Aplikacja **nie może**
 2. `docs/solutions/` — baza rozwiązanych problemów
 3. `docs/CONCEPTS.md` — słownik pojęć
 4. `docs/KONCEPCJA.md` — decyzje architektoniczne v1.1
-5. `PRZEWODNIK.md` (dla użytkownika, ze zrzutami w `docs/img/`), `docs/DEPLOY_ORACLE.md` (główne), `docs/DEPLOY_DOCKER.md`, `docs/DEPLOY_CT8.md` — wdrożenie
+5. `docs/ANDROID.md` — APK; `PRZEWODNIK.md` (dla użytkownika, ze zrzutami w `docs/img/`), `docs/DEPLOY_ORACLE.md` (główne), `docs/DEPLOY_DOCKER.md`, `docs/DEPLOY_CT8.md` — wdrożenie
 
 ## Disclaimer
 
