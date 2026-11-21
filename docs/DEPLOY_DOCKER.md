@@ -6,8 +6,8 @@ działa na każdym serwerze z Ubuntu/Debianem lub Oracle Linux/RHEL (Hetzner, OV
 
 ```bash
 ./scripts/build_package.sh oracle
-scp dist/plagcheck-oracle-1.2.0.tar.gz root@SERWER: \
- && ssh -t root@SERWER 'tar -xzf plagcheck-oracle-1.2.0.tar.gz && bash plagcheck-oracle-1.2.0/setup.sh --domain plagiat.mojadomena.pl'
+scp dist/plagcheck-oracle-1.2.1.tar.gz root@SERWER: \
+ && ssh -t root@SERWER 'tar -xzf plagcheck-oracle-1.2.1.tar.gz && bash plagcheck-oracle-1.2.1/setup.sh --domain plagiat.mojadomena.pl'
 ```
 
 ## Ręcznie (bez instalatora)

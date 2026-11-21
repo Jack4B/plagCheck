@@ -114,9 +114,12 @@ class Signals:
 
 def _describe(key: str, signal: float, raw: float) -> str:
     ai = signal > 0
+    strong = abs(signal) >= 0.5
     if key == "burstiness":
-        return (f"Współczynnik zmienności długości zdań {raw:.2f} — "
-                + ("zdania o bardzo podobnej długości (typowe dla AI)." if ai else "duża naturalna zmienność."))
+        if ai:
+            return (f"Współczynnik zmienności długości zdań {raw:.2f} — zdania o "
+                    + ("bardzo podobnej długości (typowe dla AI)." if strong else "dość podobnej długości."))
+        return f"Współczynnik zmienności długości zdań {raw:.2f} — " + ("duża" if strong else "umiarkowana") + " naturalna zmienność."
     if key == "markers":
         return f"{raw:.1f} fraz-markerów na 1000 słów" + (" — nadreprezentacja." if ai else ".")
     if key == "connectors":
@@ -129,7 +132,7 @@ def _describe(key: str, signal: float, raw: float) -> str:
     if key == "triads":
         return f"{raw:.2f} wyliczeń trójkowych na zdanie."
     if key == "paragraphs":
-        return f"Zmienność długości akapitów {raw:.2f}" + (" — bardzo jednolite akapity." if ai else ".")
+        return f"Zmienność długości akapitów {raw:.2f}" + ((" — bardzo jednolite akapity." if strong else " — dość jednolite akapity.") if ai else ".")
     return ""
 
 

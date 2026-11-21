@@ -34,6 +34,9 @@ function h(tag, attrs = {}, ...children) {
   }
   return el;
 }
+// replaceChildren zamienia null na tekst "null" — filtrujemy puste dzieci.
+const fill = (el, ...kids) => el.replaceChildren(...kids.flat().filter((k) => k !== null && k !== undefined && k !== false));
+const shareText = (s) => (s.percent === 0 && s.matched_words > 0 ? "pokrywa się z innymi źródłami" : `${s.percent}%`);
 const fmtDate = (iso) => (iso ? new Date(iso).toLocaleString("pl-PL", { dateStyle: "short", timeStyle: "short" }) : "");
 const SOURCE_NAMES = { brave: "Brave Search", serper: "Google (Serper)", serpapi: "Google (SerpAPI)", wikipedia: "Wikipedia", openalex: "OpenAlex (publikacje naukowe)" };
 const KIND_LABELS = { web: "internet", wikipedia: "wikipedia", scholar: "publikacja naukowa", local: "baza lokalna" };
@@ -238,7 +241,7 @@ function renderReport(job, r) {
   const kpis = h("div", { class: "kpis" },
     kpi("Podobieństwo", `${sim.percent}%`, `dokładne ${sim.exact_percent}% · parafrazy ${sim.paraphrase_percent}%`, level(sim.percent)),
     kpi("Prawdopodobieństwo AI", ai.percent == null ? "—" : `${ai.percent}%`, ai.label ? `${ai.label} · pewność: ${ai.confidence}` : "wyłączone", aiLevel(ai.percent)),
-    kpi("Źródła", String(r.sources.length), r.search?.providers?.length ? `${r.search.queries_sent} zapytań · ${r.search.pages_fetched} stron` : "bez wyszukiwania w sieci"),
+    kpi("Źródła", String(r.sources.length), r.search?.providers?.length ? `${r.search.queries_sent + r.search.cache_hits} zapytań${r.search.cache_hits ? ` (${r.search.cache_hits} z pamięci)` : ""} · ${r.search.pages_fetched} stron` : "bez wyszukiwania w sieci"),
     kpi("Słowa", String(r.stats.words), `wyłączone z analizy: ${r.stats.excluded_words}`),
   );
   const warnings = (r.warnings || []).map((w) => h("div", { class: "alert warn" }, w));
@@ -317,11 +320,11 @@ function textPanel(r, sourcesById) {
     docEl.querySelectorAll(`mark[data-source="${id}"]`).forEach((m) => m.classList.add("focus"));
     if (!src) return;
     const para = (r.paraphrases || []).filter((p) => p.source === id).slice(0, 1)[0];
-    detail.replaceChildren(
+    fill(detail, 
       h("b", {}, `[${src.id}] ${src.title}`), " ",
       h("span", { class: "badge" }, type === "paraphrase" ? "parafraza" : "dopasowanie"), h("br"),
       src.url ? h("a", { href: src.url, target: "_blank", rel: "noopener noreferrer" }, src.url) : h("span", { class: "muted" }, "Plik z bazy lokalnej"),
-      h("div", { class: "muted small" }, `Udział: ${src.percent}% · wspólne słowa: ${src.matched_words} · parafrazy: ${src.paraphrases}`),
+      h("div", { class: "muted small" }, `Udział: ${shareText(src)} · wspólne słowa: ${src.matched_words} · parafrazy: ${src.paraphrases}`),
       para && type === "paraphrase" ? h("div", { class: "small", style: { marginTop: "6px" } }, "Fragment źródła: „", para.source_excerpt, "”") : null,
     );
     detail.classList.remove("hidden");
@@ -329,7 +332,7 @@ function textPanel(r, sourcesById) {
   const showChunk = (idx) => {
     const c = (r.ai.chunks || []).find((x) => x.index === idx);
     if (!c) return;
-    detail.replaceChildren(
+    fill(detail, 
       h("b", {}, `Fragment ${idx + 1}: ${c.percent}% (${c.label})`),
       ...c.reasons.map((x) => h("div", { class: "small" }, `${x.direction === "ai" ? "▲" : "▼"} ${x.label}: ${x.description}`)),
       c.markers.length ? h("div", { class: "small muted" }, "Frazy-markery: ", c.markers.join(", ")) : null,
@@ -365,7 +368,7 @@ function sourcesPanel(r) {
       s.url ? h("a", { class: "url", href: s.url, target: "_blank", rel: "noopener noreferrer" }, s.url) : h("div", { class: "url" }, "plik referencyjny"),
       h("div", { class: "small muted" }, `wspólne słowa: ${s.matched_words} · zdania-parafrazy: ${s.paraphrases}`),
     ),
-    h("div", { class: "pct" }, `${s.percent}%`),
+    h("div", { class: s.percent === 0 && s.matched_words > 0 ? "pct small muted" : "pct", title: "Udział słów przypisanych tylko do tego źródła" }, shareText(s)),
   )));
   const paras = (r.paraphrases || []).slice(0, 30).map((p) => h("div", { class: "reason" },
     h("div", { class: "small muted" }, `Źródło [${p.source}] · podobieństwo ${(p.score * 100).toFixed(0)}% · ${p.method === "semantic" ? "znaczeniowe (synonimy)" : "leksykalne"}`),

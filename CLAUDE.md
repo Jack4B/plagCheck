@@ -9,7 +9,7 @@
 Alternatywa: CT8.pl (MyDevil, FreeBSD, Passenger, profil lite).
 **Konspekt:** `docs/konspekt.md`. Skill cyklu życia: `.claude/skills/plagiarism-detector-lifecycle/`.
 
-## Stan (v1.2.0)
+## Stan (v1.2.1)
 
 Etapy 1–6 konspektu zrealizowane. **Koncepcja v1.1** (`docs/KONCEPCJA.md`): dwa profile jednej bazy kodu —
 **lite** (CT8, Passenger, czysty Python) i **full** (Docker/VPS, + parafrazy synonimiczne przez embeddingi);
@@ -112,7 +112,7 @@ Nie istnieje publiczne API do wyszukiwania treści prac. Aplikacja **nie może**
 2. `docs/solutions/` — baza rozwiązanych problemów
 3. `docs/CONCEPTS.md` — słownik pojęć
 4. `docs/KONCEPCJA.md` — decyzje architektoniczne v1.1
-5. `docs/DEPLOY_ORACLE.md` (główne), `docs/DEPLOY_DOCKER.md`, `docs/DEPLOY_CT8.md` — wdrożenie
+5. `PRZEWODNIK.md` (dla użytkownika, ze zrzutami w `docs/img/`), `docs/DEPLOY_ORACLE.md` (główne), `docs/DEPLOY_DOCKER.md`, `docs/DEPLOY_CT8.md` — wdrożenie
 
 ## Disclaimer
 

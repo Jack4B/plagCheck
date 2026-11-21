@@ -28,6 +28,8 @@ if [ "$TARGET" = oracle ]; then
   cp deploy/oracle/Caddyfile deploy/oracle/setup.sh "$BUILD/deploy/oracle/"
   cp deploy/oracle/setup.sh "$BUILD/setup.sh"
   cp docs/DEPLOY_ORACLE.md "$BUILD/README_ORACLE.md"
+  cp PRZEWODNIK.md "$BUILD/PRZEWODNIK.md"
+  mkdir -p "$BUILD/docs" && cp -R docs/img "$BUILD/docs/img"
   chmod +x "$BUILD/setup.sh" "$BUILD/deploy/oracle/setup.sh"
 else
   cp passenger_wsgi.py "$BUILD/"
