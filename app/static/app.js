@@ -36,7 +36,18 @@ function h(tag, attrs = {}, ...children) {
 }
 // replaceChildren zamienia null na tekst "null" — filtrujemy puste dzieci.
 const fill = (el, ...kids) => el.replaceChildren(...kids.flat().filter((k) => k !== null && k !== undefined && k !== false));
-const shareText = (s) => (s.percent === 0 && s.matched_words > 0 ? "pokrywa się z innymi źródłami" : `${s.percent}%`);
+// Polski zapis liczb: 12,5% zamiast 12.5%.
+const pct = (n) => `${String(n).replace(".", ",")}%`;
+// Odmiana: plural(1, "strona", "strony", "stron") → „1 strona”, 3 → „3 strony”, 16 → „16 stron”.
+const plural = (n, one, few, many) => {
+  const d = n % 10, dd = n % 100;
+  return `${n} ${n === 1 ? one : d >= 2 && d <= 4 && (dd < 12 || dd > 14) ? few : many}`;
+};
+const shareText = (s) => (s.percent === 0 && s.matched_words > 0 ? "pokrywa się z innymi źródłami" : pct(s.percent));
+const VIA_LABELS = {
+  archive: "kopia z Internet Archive (strona nie odpowiedziała)",
+  snippet: "tylko fragment z wyników wyszukiwania (strona nie odpowiedziała)",
+};
 // 72 → „3 dniach”, 8760 → „365 dniach”, 12 → „12 godzinach”
 const ttlText = (h) => (h % 24 === 0 ? (h === 24 ? "1 dniu" : `${h / 24} dniach`) : `${h} godzinach`);
 const fmtDate = (iso) => (iso ? new Date(iso).toLocaleString("pl-PL", { dateStyle: "short", timeStyle: "short" }) : "");
@@ -251,9 +262,9 @@ function renderReport(job, r) {
     ),
   );
   const kpis = h("div", { class: "kpis" },
-    kpi("Podobieństwo", `${sim.percent}%`, `dokładne ${sim.exact_percent}% · parafrazy ${sim.paraphrase_percent}%`, level(sim.percent)),
-    kpi("Prawdopodobieństwo AI", ai.percent == null ? "—" : `${ai.percent}%`, ai.label ? `${ai.label} · pewność: ${ai.confidence}` : "wyłączone", aiLevel(ai.percent)),
-    kpi("Źródła", String(r.sources.length), r.search?.providers?.length ? `${r.search.queries_sent + r.search.cache_hits} zapytań${r.search.cache_hits ? ` (${r.search.cache_hits} z pamięci)` : ""} · ${r.search.pages_fetched} stron` : "bez wyszukiwania w sieci"),
+    kpi("Podobieństwo", pct(sim.percent), `dokładne ${pct(sim.exact_percent)} · parafrazy ${pct(sim.paraphrase_percent)}`, level(sim.percent)),
+    kpi("Prawdopodobieństwo AI", ai.percent == null ? "—" : pct(ai.percent), ai.label ? `${ai.label} · pewność: ${ai.confidence}` : "wyłączone", aiLevel(ai.percent)),
+    kpi("Źródła", String(r.sources.length), r.search?.providers?.length ? searchSummary(r.search) : "bez wyszukiwania w sieci"),
     kpi("Słowa", String(r.stats.words), `wyłączone z analizy: ${r.stats.excluded_words}`),
   );
   const warnings = (r.warnings || []).map((w) => h("div", { class: "alert warn" }, w));
@@ -345,7 +356,7 @@ function textPanel(r, sourcesById) {
     const c = (r.ai.chunks || []).find((x) => x.index === idx);
     if (!c) return;
     fill(detail, 
-      h("b", {}, `Fragment ${idx + 1}: ${c.percent}% (${c.label})`),
+      h("b", {}, `Fragment ${idx + 1}: ${pct(c.percent)} (${c.label})`),
       ...c.reasons.map((x) => h("div", { class: "small" }, `${x.direction === "ai" ? "▲" : "▼"} ${x.label}: ${x.description}`)),
       c.markers.length ? h("div", { class: "small muted" }, "Frazy-markery: ", c.markers.join(", ")) : null,
     );
@@ -369,12 +380,21 @@ function textPanel(r, sourcesById) {
 }
 
 // Diagnostyka wyszukiwania: ile zapytań wykonało każde źródło i dlaczego się zatrzymało.
+function searchSummary(s) {
+  const total = s.queries_sent + s.cache_hits;
+  let text = plural(total, "zapytanie", "zapytania", "zapytań");
+  if (s.cache_hits) text += ` (${s.cache_hits} z pamięci)`;
+  text += ` · ${plural(s.pages_fetched, "strona", "strony", "stron")}`;
+  if (s.pages_archived) text += ` (${s.pages_archived} z archiwum)`;
+  return text;
+}
+
 function searchStats(r) {
   const stats = r.search?.sources;
   if (!stats || !Object.keys(stats).length) return null;
   return h("section", { class: "card", style: { marginTop: "16px" } }, h("h3", {}, "Przebieg wyszukiwania"),
     Object.entries(stats).map(([name, st]) => h("div", { class: "reason small" },
-      h("b", {}, SOURCE_NAMES[name] || name), `: ${st.done} z ${st.planned} zapytań`,
+      h("b", {}, SOURCE_NAMES[name] || name), `: ${st.done} z ${st.planned} ${st.planned === 1 ? "zapytania" : "zapytań"}`,
       st.errors ? ` · błędy: ${st.errors}` : "",
       st.stopped ? h("span", { class: "muted" }, ` · zatrzymano: ${st.stopped}`) : null,
       st.detail ? h("div", { class: "muted small" }, "Odpowiedź serwera: ", st.detail) : null)));
@@ -392,6 +412,7 @@ function sourcesPanel(r) {
       h("div", { class: "title" }, s.title, " ", h("span", { class: "badge" }, KIND_LABELS[s.kind] || s.kind)),
       s.url ? h("a", { class: "url", href: s.url, target: "_blank", rel: "noopener noreferrer" }, s.url) : h("div", { class: "url" }, "plik referencyjny"),
       h("div", { class: "small muted" }, `wspólne słowa: ${s.matched_words} · zdania-parafrazy: ${s.paraphrases}`),
+      s.via ? h("div", { class: "small muted" }, VIA_LABELS[s.via] || s.via) : null,
     ),
     h("div", { class: s.percent === 0 && s.matched_words > 0 ? "pct small muted" : "pct", title: "Udział słów przypisanych tylko do tego źródła" }, shareText(s)),
   )));
@@ -410,7 +431,7 @@ function aiPanel(ai) {
   const meter = (p) => h("div", { class: "meter" }, h("div", { style: { width: `${p}%`, background: p >= 65 ? "var(--exact-strong)" : p >= 35 ? "var(--para-strong)" : "var(--ok)" } }));
   return h("div", { class: "grid-2" },
     h("section", { class: "card" },
-      h("h2", {}, `Wynik: ${ai.percent}% — ${ai.label}`),
+      h("h2", {}, `Wynik: ${pct(ai.percent)} — ${ai.label}`),
       meter(ai.percent),
       h("p", { class: "muted small" }, `Pewność oceny: ${ai.confidence} (${ai.words} słów). Wynik heurystyczny — detektory AI często mylą się przy tekstach technicznych, krótkich i redagowanych. Nie traktuj go jako dowodu.`),
       h("h3", {}, "Najważniejsze sygnały"),
@@ -422,7 +443,7 @@ function aiPanel(ai) {
     h("section", { class: "card" },
       h("h2", {}, "Fragmenty"),
       ai.chunks.map((c) => h("div", { class: "chunk" },
-        h("div", { class: "pct" }, `${c.percent}%`),
+        h("div", { class: "pct" }, pct(c.percent)),
         h("div", {}, meter(c.percent), h("div", { class: "small", style: { marginTop: "6px" } }, c.excerpt, "…"),
           h("div", { class: "small muted" }, c.reasons.map((x) => x.label).join(" · "))),
       )),
@@ -566,6 +587,7 @@ const SETTINGS_FORM = [
     ["WIKIPEDIA_MAX_QUERIES", "int", "Limit zapytań do Wikipedii (1 na sekundę)"],
     ["KEYWORD_QUERIES_WEB", "bool", "Słowa kluczowe także do płatnej wyszukiwarki"],
     ["MAX_PAGES_FETCHED", "int", "Maks. stron pobieranych do porównania"],
+    ["ARCHIVE_MAX_PAGES", "int", "Strony niedostępne: maks. kopii z Internet Archive (0 = wyłączone)"],
   ]],
   ["Wykrywanie parafraz", "Niższy próg = więcej wykrytych parafraz, ale też więcej fałszywych trafień.", [
     ["SEMANTIC_ENABLED", "bool", "Model znaczeniowy (synonimy) — działa w telefonie"],
@@ -574,8 +596,8 @@ const SETTINGS_FORM = [
   ]],
 ];
 const PRESETS = {
-  max: { MAX_WEB_QUERIES: 80, KEYWORD_QUERIES: 60, MAX_PAGES_FETCHED: 40, SEMANTIC_ENABLED: true, SEMANTIC_THRESHOLD: 0.78, PARAPHRASE_THRESHOLD: 0.55 },
-  std: { MAX_WEB_QUERIES: 40, KEYWORD_QUERIES: 30, MAX_PAGES_FETCHED: 24, SEMANTIC_ENABLED: true, SEMANTIC_THRESHOLD: 0.8, PARAPHRASE_THRESHOLD: 0.6 },
+  max: { MAX_WEB_QUERIES: 80, KEYWORD_QUERIES: 60, MAX_PAGES_FETCHED: 40, ARCHIVE_MAX_PAGES: 15, SEMANTIC_ENABLED: true, SEMANTIC_THRESHOLD: 0.78, PARAPHRASE_THRESHOLD: 0.55 },
+  std: { MAX_WEB_QUERIES: 40, KEYWORD_QUERIES: 30, MAX_PAGES_FETCHED: 24, ARCHIVE_MAX_PAGES: 8, SEMANTIC_ENABLED: true, SEMANTIC_THRESHOLD: 0.8, PARAPHRASE_THRESHOLD: 0.6 },
 };
 
 async function renderSettings() {

@@ -69,8 +69,8 @@ FEATURE_LABELS = {
     "burstiness": "Zmienność długości zdań (burstiness)",
     "markers": "Frazy typowe dla tekstów AI",
     "connectors": "Zdania zaczynające się od łączników",
-    "regularity": "Brak nieregularności językowych",
-    "dashes": "Pauzy (—) i myślniki",
+    "regularity": "Nieregularności językowe (literówki, spacje, wielkie litery)",
+    "dashes": "Myślniki (pauzy — i półpauzy –)",
     "triads": "Wyliczenia trójkowe („X, Y i Z”)",
     "paragraphs": "Jednorodność długości akapitów",
 }
@@ -112,27 +112,31 @@ class Signals:
         return out
 
 
+def _num(x: float, digits: int) -> str:
+    return f"{x:.{digits}f}".replace(".", ",")  # polski przecinek dziesiętny
+
+
 def _describe(key: str, signal: float, raw: float) -> str:
     ai = signal > 0
     strong = abs(signal) >= 0.5
     if key == "burstiness":
         if ai:
-            return (f"Współczynnik zmienności długości zdań {raw:.2f} — zdania o "
+            return (f"Współczynnik zmienności długości zdań {_num(raw, 2)} — zdania o "
                     + ("bardzo podobnej długości (typowe dla AI)." if strong else "dość podobnej długości."))
-        return f"Współczynnik zmienności długości zdań {raw:.2f} — " + ("duża" if strong else "umiarkowana") + " naturalna zmienność."
+        return f"Współczynnik zmienności długości zdań {_num(raw, 2)} — " + ("duża" if strong else "umiarkowana") + " naturalna zmienność."
     if key == "markers":
-        return f"{raw:.1f} fraz-markerów na 1000 słów" + (" — nadreprezentacja." if ai else ".")
+        return f"Frazy typowe dla AI: {_num(raw, 1)} na 1000 słów" + (" — nadreprezentacja." if ai else ".")
     if key == "connectors":
         return f"{raw * 100:.0f}% zdań zaczyna się od łącznika typu „Ponadto”, „Co więcej”."
     if key == "regularity":
-        return (f"{raw:.1f} nieregularności na 1000 słów — "
-                + ("tekst niemal „zbyt poprawny”." if ai else "naturalne drobne błędy/nieregularności."))
+        return (f"Nieregularności: {_num(raw, 1)} na 1000 słów — "
+                + ("tekst niemal „zbyt poprawny”." if ai else "naturalne drobne błędy i nieregularności."))
     if key == "dashes":
-        return f"{raw:.1f} pauz (—) na 1000 słów."
+        return f"Myślniki: {_num(raw, 1)} na 1000 słów (pauza liczona w całości, półpauza w połowie)."
     if key == "triads":
-        return f"{raw:.2f} wyliczeń trójkowych na zdanie."
+        return f"Wyliczenia trójkowe: {_num(raw, 2)} na zdanie."
     if key == "paragraphs":
-        return f"Zmienność długości akapitów {raw:.2f}" + ((" — bardzo jednolite akapity." if strong else " — dość jednolite akapity.") if ai else ".")
+        return f"Zmienność długości akapitów {_num(raw, 2)}" + ((" — bardzo jednolite akapity." if strong else " — dość jednolite akapity.") if ai else ".")
     return ""
 
 
@@ -192,7 +196,9 @@ def compute_signals(doc: Document, sentences, include_paragraphs: bool = False) 
     sig.raw["regularity"] = irregular
     sig.values["regularity"] = _clamp(0.3 - irregular * 0.35, -1.0, 0.3)
 
-    dashes = (joined.count("—") + joined.count(" – ")) * per_k
+    # Półpauza ze spacjami to poprawna polska typografia (Word wstawia ją sam przy „ - ”),
+    # więc liczy się w połowie; pauza (—) w polskim tekście to głównie nawyk modeli.
+    dashes = (joined.count("—") + 0.5 * joined.count(" – ")) * per_k
     sig.raw["dashes"] = dashes
     sig.values["dashes"] = _clamp(dashes / 6.0, 0.0, 1.0)
 

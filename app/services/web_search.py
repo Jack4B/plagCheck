@@ -424,6 +424,9 @@ class _BaseProvider:
     def fetch_text(self, url: str) -> str | None:
         return fetch_page_text(url, timeout=self.timeout)
 
+    def fetch_archived(self, url: str) -> str | None:
+        return fetch_archived_text(url, timeout=self.timeout)
+
 
 class BraveProvider(_BaseProvider):
     name = "brave"

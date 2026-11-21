@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, wait
 from typing import Callable, Iterable, Protocol
 from urllib.parse import urlsplit
 
@@ -32,6 +32,7 @@ DEFAULT_OPTIONS = {
     "exclude_legal": False,
 }
 
+ARCHIVE_TIME_BUDGET = 45.0  # s na kopie z Internet Archive w jednej analizie
 KIND_BY_PROVIDER = {"wikipedia": "wikipedia", "openalex": "scholar"}
 # Darmowe źródła bez limitu kosztowego — dostają też zapytania słowami kluczowymi.
 KEYWORD_PROVIDERS = {"wikipedia", "openalex"}
@@ -139,6 +140,33 @@ def _search_all(
 
     with ThreadPoolExecutor(max_workers=len(searchers)) as pool:
         return [item for chunk in pool.map(run, searchers) for item in chunk]
+
+
+def _archive_fallback(ranked, pages: list, settings: Settings, progress: Progress) -> set[int]:
+    """Strony z trafieniem frazy dokładnej, których nie udało się pobrać → Internet Archive.
+
+    Portale bywają niedostępne dla programów (blokady, zgoda na cookies), a artykuły znikają;
+    kopia w archiwum często zawiera pełny tekst. Uzupełnia `pages` w miejscu."""
+    missing = [
+        n for n, ((url, entry), page) in enumerate(zip(ranked, pages))
+        if not page and entry["phrases"] and entry["provider"].name not in KEYWORD_PROVIDERS
+        and hasattr(entry["provider"], "fetch_archived")
+    ][: max(0, settings.archive_max_pages)]
+    if not missing:
+        return set()
+    progress(59, f"Kopie stron z Internet Archive ({len(missing)})")
+    pool = ThreadPoolExecutor(max_workers=3)
+    futures = {pool.submit(ranked[n][1]["provider"].fetch_archived, ranked[n][0]): n for n in missing}
+    # Archiwum bywa wolne — po ARCHIVE_TIME_BUDGET s idziemy dalej z tym, co już przyszło.
+    done, _ = wait(futures, timeout=ARCHIVE_TIME_BUDGET)
+    pool.shutdown(wait=False, cancel_futures=True)
+    found = set()
+    for fut in done:
+        text = fut.result() if fut.exception() is None else None
+        if text:
+            pages[futures[fut]] = text
+            found.add(futures[fut])
+    return found
 
 
 def run_analysis(
@@ -254,12 +282,19 @@ def run_analysis(
         progress(58, f"Pobieranie {len(ranked)} stron źródłowych")
         with ThreadPoolExecutor(max_workers=4) as pool:
             pages = list(pool.map(lambda kv: kv[1]["provider"].fetch_text(kv[0]), ranked))
+        archived = _archive_fallback(ranked, pages, settings, progress)
+        search_info["pages_archived"] = len(archived)
         for n, ((url, entry), page_text) in enumerate(zip(ranked, pages)):
             progress(60 + int(25 * n / max(1, len(ranked))), f"Porównanie ze źródłami ({n + 1}/{len(ranked)})")
+            # Fragmenty z wyników wyszukiwania dokładamy zawsze: gdy strona schowała artykuł
+            # (skrypty, zgoda na cookies, paywall), snippet z wyszukaną frazą bywa jedynym dowodem.
+            snippets = "\n\n".join(dict.fromkeys(s for s in entry["snippets"] if s))
+            via = "archive" if n in archived else None
             if page_text:
                 search_info["pages_fetched"] += 1
+                page_text = f"{page_text}\n\n{snippets}" if snippets else page_text
             else:
-                page_text = "\n\n".join(dict.fromkeys(entry["snippets"]))  # zapas: snippety/abstrakty
+                page_text, via = snippets, "snippet"
             # model parafraz (kosztowny) tylko dla najlepiej rokujących stron — kolejność wg trafień
             kw = compare_kw if n < SEMANTIC_MAX_SOURCES else {**compare_kw, "encoder": None}
             result = compare(index, page_text, **kw)
@@ -269,7 +304,7 @@ def run_analysis(
                 SourceHit(
                     len(sources) + 1, KIND_BY_PROVIDER.get(entry["provider"].name, "web"),
                     entry["title"] or _host(url), url, result.exact_tokens, result.paraphrase_sentences,
-                    len(entry["phrases"]), result.semantic_sentences,
+                    len(entry["phrases"]), result.semantic_sentences, via,
                 )
             )
             for k in entry["phrases"]:

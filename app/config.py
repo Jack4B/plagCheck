@@ -69,6 +69,7 @@ class Settings:
     openalex_max_queries: int
     keyword_queries_web: bool  # także do płatnej wyszukiwarki (zużywa limit API)
     max_pages_fetched: int
+    archive_max_pages: int  # strony niedostępne → kopia z Internet Archive (0 = wyłączone)
     search_cache_hours: int
     http_timeout: float
     # Analiza
@@ -124,6 +125,7 @@ def get_settings() -> Settings:
         openalex_max_queries=_int("OPENALEX_MAX_QUERIES", 30),
         keyword_queries_web=_bool("KEYWORD_QUERIES_WEB", False),
         max_pages_fetched=_int("MAX_PAGES_FETCHED", 12),
+        archive_max_pages=_int("ARCHIVE_MAX_PAGES", 6),
         search_cache_hours=_int("SEARCH_CACHE_HOURS", 24 * 7),
         http_timeout=_float("HTTP_TIMEOUT", 10.0),
         phrase_min_words=_int("PHRASE_MIN_WORDS", 10),

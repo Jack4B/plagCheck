@@ -38,6 +38,7 @@ class SourceHit:
     paraphrases: dict[int, tuple[float, str]] = field(default_factory=dict)
     queries_matched: int = 0
     semantic: set[int] = field(default_factory=set)
+    via: str | None = None  # "archive" = kopia z Internet Archive, "snippet" = tylko fragmenty z wyszukiwarki
 
 
 def _token_labels(doc: Document, sources: list[SourceHit]):
@@ -142,6 +143,7 @@ def build_report(
                 "matched_words": total_exact,
                 "paraphrases": len(src.paraphrases),
                 "queries_matched": src.queries_matched,
+                "via": src.via,
             }
         )
     source_rows.sort(key=lambda r: -r["percent"])
@@ -209,6 +211,16 @@ sup{font-size:10px;color:#a1352a;font-weight:600}.disclaimer{background:#f4f6fa;
 """
 
 
+def _pct(value) -> str:
+    return f"{value}%".replace(".", ",")  # polski przecinek dziesiętny
+
+
+VIA_LABELS = {
+    "archive": "kopia z Internet Archive",
+    "snippet": "tylko fragment z wyników wyszukiwania",
+}
+
+
 def report_to_html(report: dict) -> str:
     e = html.escape
     sim = report["similarity"]
@@ -222,8 +234,8 @@ def report_to_html(report: dict) -> str:
         f"<div class='muted'>Wygenerowano {e(report['created_at'])} · PlagCheck {e(str(report['version']))}</div>",
         f"<p class='disclaimer'>{e(report['disclaimer'])}</p>",
         "<div class='kpis'>",
-        f"<div class='kpi'>Podobieństwo<b>{sim['percent']}%</b><span class='muted'>dokładne {sim['exact_percent']}% · parafrazy {sim['paraphrase_percent']}%</span></div>",
-        f"<div class='kpi'>Prawdopodobieństwo AI<b>{'—' if ai.get('percent') is None else str(ai['percent']) + '%'}</b><span class='muted'>{e(str(ai.get('label', '')))}</span></div>",
+        f"<div class='kpi'>Podobieństwo<b>{_pct(sim['percent'])}</b><span class='muted'>dokładne {_pct(sim['exact_percent'])} · parafrazy {_pct(sim['paraphrase_percent'])}</span></div>",
+        f"<div class='kpi'>Prawdopodobieństwo AI<b>{'—' if ai.get('percent') is None else _pct(ai['percent'])}</b><span class='muted'>{e(str(ai.get('label', '')))}</span></div>",
         f"<div class='kpi'>Słowa<b>{report['stats']['words']}</b><span class='muted'>wyłączone: {report['stats']['excluded_words']}</span></div>",
         f"<div class='kpi'>Źródła<b>{len(report['sources'])}</b></div>",
         "</div>",
@@ -233,9 +245,11 @@ def report_to_html(report: dict) -> str:
         parts.append("<table><tr><th>#</th><th>Źródło</th><th>Udział</th><th>Słowa</th><th>Parafrazy</th></tr>")
         for s in report["sources"]:
             link = f"<a href='{e(s['url'])}'>{e(s['title'])}</a><br><span class='muted'>{e(s['url'])}</span>" if s["url"] else e(s["title"])
+            if s.get("via"):
+                link += f"<br><span class='muted'>{e(VIA_LABELS.get(s['via'], s['via']))}</span>"
             parts.append(
                 f"<tr><td>{s['id']}</td><td>{link} <span class='muted'>({e(KIND_LABELS.get(s['kind'], s['kind']))})</span></td>"
-                f"<td>{s['percent']}%</td><td>{s['matched_words']}</td><td>{s['paraphrases']}</td></tr>"
+                f"<td>{_pct(s['percent'])}</td><td>{s['matched_words']}</td><td>{s['paraphrases']}</td></tr>"
             )
         parts.append("</table>")
     else:
@@ -249,7 +263,7 @@ def report_to_html(report: dict) -> str:
         if ai.get("chunks"):
             parts.append("<table><tr><th>Fragment</th><th>AI</th><th>Początek</th></tr>")
             for c in ai["chunks"]:
-                parts.append(f"<tr><td>{c['index'] + 1}</td><td>{c['percent']}%</td><td>{e(c['excerpt'])}…</td></tr>")
+                parts.append(f"<tr><td>{c['index'] + 1}</td><td>{_pct(c['percent'])}</td><td>{e(c['excerpt'])}…</td></tr>")
             parts.append("</table>")
 
     parts.append("<h2>Tekst z podświetleniami</h2><p class='muted'><mark class='exact'>dopasowanie dokładne</mark> · <mark class='paraphrase'>parafraza</mark> · <span class='excluded'>wyłączone</span></p><div class='doc'>")
