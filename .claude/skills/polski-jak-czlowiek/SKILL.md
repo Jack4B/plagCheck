@@ -48,15 +48,40 @@ Usuń albo zastąp. Te zwroty (i ich zagęszczenie) wyłapuje m.in. detektor w P
 | szerokie spektrum / szeroki wachlarz | „dużo”, „różne”, a najlepiej wymień |
 | kompleksowy, holistyczny, innowacyjny, dynamicznie rozwijający się | opisz, co konkretnie robi |
 | nie tylko…, ale również… (w każdym akapicie) | „i”, dwa zdania |
-| Ponadto. Co więcej. Dodatkowo. (na początku kolejnych zdań) | zwykle nic; czasem „Do tego”, „A jeszcze…” |
+| Ponadto. Co więcej. Dodatkowo. Jednakże. Niemniej. Z kolei. Tym samym. W konsekwencji. (na początku kolejnych zdań) | zwykle nic; czasem „Do tego”, „Ale”, „Dlatego” |
+| zarówno X, jak i Y | X i Y |
 | Podsumowując / Reasumując / Konkludując | konkretny wniosek bez etykiety |
-| przyczynia się do / ma na celu / pozwala na | „sprawia, że”, „żeby”, „umożliwia” — albo przebuduj zdanie |
-| w kontekście / w świetle / z perspektywy | „jeśli chodzi o”, „przy” — albo usuń |
+| przyczynia się do / ma na celu / pozwala na / umożliwia | „sprawia, że”, „żeby”, „dzięki temu można” — a najlepiej zdanie z podmiotem, który coś robi: „Program sprawdza…” |
+| w kontekście / w świetle / z perspektywy / w obliczu | „jeśli chodzi o”, „przy”, „wobec” — albo usuń |
+| w celu / w ramach / ze względu na / w zakresie / w odniesieniu do | „żeby”, „w”, „bo”, „o” |
+| bez wątpienia / niewątpliwie / nie sposób przecenić / niezwykle | usuń; jeśli coś jest ważne, pokaż dlaczego |
+| na przestrzeni lat / zyskuje na znaczeniu / coraz większe znaczenie | konkret: „od 2015 r.”, „w ostatnich trzech latach liczba… wzrosła z… do…” |
+| nieodłączny element / wieloaspektowy / efektywny / optymalizacja / transformacja / zrównoważony | zwykłe słowo albo opis tego, co się dzieje |
 | Zanurzmy się / Przyjrzyjmy się bliżej / Oto … | zacznij od treści |
 | Mam nadzieję, że to pomoże! / Daj znać, jeśli… (w każdej odpowiedzi) | tylko gdy naprawdę pasuje |
 | wyliczenia zawsze po trzy („szybko, tanio i wygodnie”) | tyle elementów, ile jest naprawdę |
 
-## 3. Kalki z angielskiego — najczęstsze błędy modeli
+## 3. Nawyki czatów (Gemini, ChatGPT i inne)
+
+Poza słownictwem tekst z czatu zdradza **forma**. Pisząc zwykły tekst:
+- **Bez pogrubień w prozie.** Człowiek nie pogrubia pięciu fraz w akapicie. Najwyżej jedno
+  ostrzeżenie w instrukcji.
+- **Bez nagłówków i list w krótkich tekstach.** Mail, post, odpowiedź na pytanie, akapit pracy:
+  zdania, nie punkty. Listy tylko dla kroków, wymagań, danych.
+- **Bez emoji** (chyba że w luźnej wiadomości ktoś sam ich używa).
+- **Bez ramki rozmowy:** „Jasne! Oto…”, „Świetne pytanie”, powtarzanie pytania, „Mam nadzieję,
+  że pomogłem”, końcowe „Czy chcesz, żebym…?”. Oddaj sam tekst.
+- **Bez etykiet** typu „Kluczowe wnioski:”, „Krótko mówiąc:”, „Mówiąc prościej:”, „Pamiętaj:”.
+- **Akapit ma tyle zdań, ile ma myśl.** Raz dwa zdania, raz siedem. Równe bloki po 4–5 zdań
+  wyglądają na wygenerowane.
+- **Nie każde zdanie potrzebuje łącznika.** Kolejność zdań często wystarcza; „Ponadto” na
+  początku co trzeciego zdania jest słyszalne od razu.
+- **Mniej przymiotników wartościujących.** „Skuteczne, nowoczesne i intuicyjne narzędzie” nie mówi
+  nic. Lepiej: co robi i dla kogo.
+- **Polskie słowa**, gdy istnieją: „wdrożenie”, nie „deployment”; „opinia”, nie „feedback” (w tekście
+  formalnym).
+
+## 4. Kalki z angielskiego — najczęstsze błędy modeli
 
 | Kalka | Po polsku |
 |---|---|
@@ -76,7 +101,7 @@ Usuń albo zastąp. Te zwroty (i ich zagęszczenie) wyłapuje m.in. detektor w P
 | Tytuły W Stylu Angielskim | Tytuły jak zdanie: „Jak działa wykrywanie plagiatu” |
 | Hej [Imię], | Cześć [Imię], / Dzień dobry, / Szanowna Pani Profesor, |
 
-## 4. Typografia i interpunkcja (tu AI myli się najczęściej)
+## 5. Typografia i interpunkcja (tu AI myli się najczęściej)
 
 - **Cudzysłów**: „polski” (dolny-górny), wewnętrzny ‚pojedynczy’ albo «francuski». Nie "angielski".
 - **Myślnik**: półpauza ze spacjami: „to – jak mówią – działa”. Pauza (—) bez spacji to angielski
@@ -93,7 +118,7 @@ Usuń albo zastąp. Te zwroty (i ich zagęszczenie) wyłapuje m.in. detektor w P
 - **Wiszące spójniki** (a, i, o, u, w, z) w druku przenosi się do następnej linii — w kodzie HTML
   można użyć twardej spacji (&nbsp;).
 
-## 5. Rejestr — dopasuj do sytuacji
+## 6. Rejestr — dopasuj do sytuacji
 
 | Sytuacja | Ton | Przykład otwarcia |
 |---|---|---|
@@ -103,7 +128,7 @@ Usuń albo zastąp. Te zwroty (i ich zagęszczenie) wyłapuje m.in. detektor w P
 | Wiadomość do znajomych | luźny, skróty, bez wielkich liter | „tej, jutro o 18 na Starym Rynku? biorę bejmy na gzika” |
 | Tekst akademicki | precyzyjny, bezosobowy umiarkowanie, bez publicystyki i regionalizmów | „W rozdziale porównano trzy metody…” — ale nadal bez „warto zauważyć” |
 
-## 6. Wielkopolski koloryt (tylko na życzenie, w tekstach nieformalnych)
+## 7. Wielkopolski koloryt (tylko na życzenie, w tekstach nieformalnych)
 
 Charakter: rzeczowość, gospodarność, ironiczny dystans, „konkretnie i bez ceregieli”.
 Gwarę **dawkuj oszczędnie** (1–3 słowa na krótki tekst), nigdy w tekstach oficjalnych,
@@ -133,7 +158,7 @@ akademickich i do obcych osób. Jeśli nie jesteś pewien słowa — nie używaj
 Przykład: „Tej, wiara, w sobotę plyndze u mnie na fyrtlu. Weźcie tytkę szneków z glancem,
 bo bimba i tak się spóźni.”
 
-## 7. Uczciwość
+## 8. Uczciwość
 
 Ten skill poprawia **styl**. Nie służy do ukrywania pochodzenia tekstu tam, gdzie zasady wymagają
 samodzielnej pracy (prace zaliczeniowe i dyplomowe, egzaminy, konkursy). W takich sytuacjach
@@ -142,16 +167,17 @@ sformułowania do jego treści — zamiast pisać całość za niego. Nigdy nie 
 literówek ani „niedoskonałości”, żeby udawać człowieka: naturalność bierze się z konkretu,
 rytmu i trafnych słów, nie z błędów.
 
-## 8. Kontrola przed oddaniem tekstu
+## 9. Kontrola przed oddaniem tekstu
 
-1. Przejrzyj czerwoną listę (rozdz. 2) i kalki (rozdz. 3) — usuń każde trafienie, które nic nie wnosi.
-2. Policz myślniki i słowa „kluczowy/istotny” — zwykle trzeba je przepołowić.
+1. Przejrzyj czerwoną listę (rozdz. 2), nawyki czatów (rozdz. 3) i kalki (rozdz. 4) — usuń każde trafienie, które nic nie wnosi.
+2. Policz myślniki, słowa „kluczowy/istotny” i zdania zaczynające się od łącznika — zwykle trzeba
+   je przepołowić. Usuń pogrubienia i nagłówki, jeśli tekst ich nie potrzebuje.
 3. Sprawdź cudzysłowy „…”, przecinki przed „że/który/żeby” i brak przecinka przed „i”.
 4. Czy pierwsze zdanie mówi, o co chodzi? Czy da się usunąć ostatnie zdanie bez straty?
 5. Przeczytaj na głos (w myślach): czy tak powiedziałby to człowiek do tej osoby?
 6. Długość: skróć o jedną piątą — prawie zawsze tekst na tym zyskuje.
 
-## 9. Przed i po
+## 10. Przed i po
 
 **Przed (typowe AI):**
 > W dzisiejszych czasach sztuczna inteligencja odgrywa kluczową rolę w edukacji. Warto zauważyć,
@@ -173,3 +199,8 @@ rytmu i trafnych słów, nie z błędów.
 > 5 grudnia i chcę uwzględnić wszystkie odpowiedzi.
 > Z wyrazami szacunku
 > Jan Kowalski
+
+## 11. Inne modele
+
+`gemini.md` w tym katalogu to ta sama wiedza w formie instrukcji do wklejenia w Gemini
+(pole *Instrukcje* w Gemie) albo jako plik `GEMINI.md` dla Gemini CLI.
