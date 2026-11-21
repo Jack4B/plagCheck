@@ -60,6 +60,17 @@ Zakładka **Ustawienia**:
 | Baza lokalna z indeksem odcisków | Twoje wcześniejsze prace i materiały |
 | Detekcja AI | cechy stylu typowe dla modeli językowych (z uzasadnieniem) |
 
+## „Źródło ograniczyło liczbę zapytań” (HTTP 429)
+
+Wikipedia i OpenAlex liczą limity **na adres IP**. Przez VPN (ikona klucza na pasku stanu)
+lub w sieci komórkowej ten sam adres ma wiele osób, więc limit bywa wyczerpany, zanim
+PlagCheck wyśle pierwsze zapytanie.
+- Wyklucz PlagCheck z VPN (w aplikacji VPN: *Split tunneling* / *Wykluczone aplikacje*)
+  albo sprawdzaj pracę z wyłączonym VPN, najlepiej przez domowe Wi-Fi.
+- Udane zapytania są zapamiętywane — ponowne sprawdzenie tej samej pracy dokończy brakujące.
+- Klucz **Serper** (serper.dev, 2 500 darmowych zapytań na start) albo **Brave** w Ustawieniach
+  daje wyniki z całego internetu niezależnie od limitów Wikipedii i OpenAlex.
+
 ## Raporty i pliki
 
 - **Eksport HTML** zapisuje raport w *Pobrane/PlagCheck/*.

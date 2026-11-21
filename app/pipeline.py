@@ -37,6 +37,20 @@ KIND_BY_PROVIDER = {"wikipedia": "wikipedia", "openalex": "scholar"}
 KEYWORD_PROVIDERS = {"wikipedia", "openalex"}
 KEYWORD_HIT_WEIGHT = 0.5  # ogólne trafienia z zapytań bez cudzysłowu ważą mniej przy wyborze stron
 
+# Budżet zapytań zależny od długości pracy (słów na 1 zapytanie) i od tego, co działa w danym źródle:
+#   (słów na zapytanie, udział fraz dokładnych). OpenAlex: abstrakty głównie po angielsku, więc
+#   cytaty z polskiej pracy rzadko trafiają — przewaga słów kluczowych.
+SOURCE_PLAN = {
+    "wikipedia": (40, 0.6),
+    "openalex": (50, 0.3),
+}
+WEB_WORDS_PER_QUERY = 30  # Brave/Serper/SerpAPI: frazy dokładne
+MIN_QUERIES_PER_SOURCE = 5
+
+
+def query_budget(words: int, words_per_query: int, cap: int) -> int:
+    return max(0, min(cap, max(MIN_QUERIES_PER_SOURCE, round(words / words_per_query))))
+
 
 class ReferenceSource(Protocol):
     def load(self, doc_hashes: set[int]) -> tuple[Iterable[dict], str]:
@@ -192,14 +206,22 @@ def run_analysis(
     if web_enabled:
         url_hits: dict[str, dict] = {}
         plans = {}
+        words = doc.eligible_token_count
         for s in searchers:
+            name = s.provider.name
             exact = list(enumerate(phrases))
-            keywords = keyword_queries if (s.provider.name in KEYWORD_PROVIDERS or settings.keyword_queries_web) else []
-            if s.provider.name == "wikipedia":
-                # 1 zapytanie/s: budżet 60% fraz dokładnych, 40% słów kluczowych, równomiernie po tekście
-                cap = max(0, settings.wikipedia_max_queries)
-                exact = _spread(exact, round(cap * 0.6), lambda kp: kp[1].score)
-                keywords = _spread(list(keywords), cap - len(exact), lambda q: q.score)
+            keywords = list(keyword_queries) if (name in KEYWORD_PROVIDERS or settings.keyword_queries_web) else []
+            if name in SOURCE_PLAN:
+                per_query, exact_share = SOURCE_PLAN[name]
+                cap = settings.wikipedia_max_queries if name == "wikipedia" else settings.openalex_max_queries
+                total = query_budget(words, per_query, cap)
+                n_exact = min(len(exact), round(total * exact_share))
+                exact = _spread(exact, n_exact, lambda kp: kp[1].score)
+                keywords = _spread(keywords, total - len(exact), lambda q: q.score)
+            else:
+                exact = _spread(exact, query_budget(words, WEB_WORDS_PER_QUERY, settings.max_web_queries),
+                                lambda kp: kp[1].score)
+                keywords = _spread(keywords, settings.keyword_queries, lambda q: q.score)
             plan: list[tuple[str, int | None]] = [(p.query, k) for k, p in exact]
             plan += [(q.query, None) for q in keywords]
             plans[id(s)] = plan

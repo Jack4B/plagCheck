@@ -30,7 +30,7 @@ from typing import Callable, Protocol
 USER_AGENT = "PlagCheck (self-hosted plagiarism self-check)"
 
 # Minimalny odstęp między żądaniami do jednego hosta (wspólny dla wyszukiwania i pobierania stron).
-HOST_INTERVALS = {"wikipedia.org": 0.5, "api.openalex.org": 0.15, "api.search.brave.com": 1.1}
+HOST_INTERVALS = {"wikipedia.org": 0.5, "api.openalex.org": 0.25, "api.search.brave.com": 1.1}
 MAX_INTERVAL = 4.0  # po kolejnych 429 odstęp rośnie ×2 do tej wartości
 RETRY_STATUSES = {429, 503}
 MAX_RETRIES = 2       # krótko: analiza jest interaktywna — lepiej pominąć źródło niż wisieć

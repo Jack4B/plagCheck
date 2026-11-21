@@ -66,6 +66,7 @@ class Settings:
     keyword_queries: int  # zapytania bez cudzysłowu (parafrazy) do darmowych źródeł
     wikipedia_max_queries: int  # Wikipedia ma limit tempa (1/s) — osobny, mniejszy budżet
     source_time_budget: float  # maks. sekund wyszukiwania na jedno źródło (potem idziemy dalej)
+    openalex_max_queries: int
     keyword_queries_web: bool  # także do płatnej wyszukiwarki (zużywa limit API)
     max_pages_fetched: int
     search_cache_hours: int
@@ -120,6 +121,7 @@ def get_settings() -> Settings:
         keyword_queries=_int("KEYWORD_QUERIES", 15),
         wikipedia_max_queries=_int("WIKIPEDIA_MAX_QUERIES", 40),
         source_time_budget=_float("SOURCE_TIME_BUDGET", 150.0),
+        openalex_max_queries=_int("OPENALEX_MAX_QUERIES", 30),
         keyword_queries_web=_bool("KEYWORD_QUERIES_WEB", False),
         max_pages_fetched=_int("MAX_PAGES_FETCHED", 12),
         search_cache_hours=_int("SEARCH_CACHE_HOURS", 24 * 7),
