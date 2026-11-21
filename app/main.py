@@ -80,7 +80,13 @@ def require_access(x_access_key: str | None = Header(None)) -> None:
         raise HTTPException(401, "Wymagany klucz dostępu.")
 
 
+MOBILE_OWNER = "device-owner-mobile"
+
+
 def owner_token(x_owner_token: str | None = Header(None)) -> str:
+    # Telefon ma jednego użytkownika: historia nie zależy od pamięci WebView.
+    if get_settings().mobile_mode:
+        return MOBILE_OWNER
     if not x_owner_token or not OWNER_RE.match(x_owner_token):
         raise HTTPException(400, "Brak lub niepoprawny nagłówek X-Owner-Token.")
     return x_owner_token
@@ -128,13 +134,14 @@ def health():
     settings = get_settings()
     from .services.semantic import semantic_available
 
-    semantic = bool(settings.semantic_model) and semantic_available()
+    semantic = bool(settings.semantic_model) and semantic_available(settings.semantic_model)
     return {
         "status": "ok",
         "version": __version__,
         "profile": "full" if semantic else "lite",
         "search_sources": [p.name for p in jobs.providers_factory(settings)],
-        "semantic_model": settings.semantic_model if semantic else None,
+        "semantic_model": (Path(settings.semantic_model).name or settings.semantic_model) if semantic else None,
+        "mobile": settings.mobile_mode,
         "worker_mode": settings.worker_mode,
         "access_required": bool(settings.access_key),
         "max_upload_mb": settings.max_upload_mb,
@@ -266,6 +273,37 @@ def remove_ref(ref_id: int, owner: str = Depends(owner_token)):
     if not db.delete_reference(ref_id, owner):
         raise HTTPException(404, "Nie znaleziono pliku (pliki wspólne usuwa administrator).")
     return {"deleted": True}
+
+
+# ------------------------------------------------------- ustawienia (tylko APK)
+
+
+def require_mobile() -> None:
+    if not get_settings().mobile_mode:
+        raise HTTPException(404, "Ustawienia w aplikacji są dostępne tylko w wersji na telefon.")
+
+
+@app.get("/api/settings", dependencies=[Depends(require_mobile)])
+def get_app_settings():
+    from . import mobile
+
+    return mobile.public_view(db.get_app_settings())
+
+
+@app.put("/api/settings", dependencies=[Depends(require_mobile)])
+async def put_app_settings(request: Request):
+    from . import mobile
+
+    try:
+        payload = await request.json()
+        if not isinstance(payload, dict):
+            raise ValueError("Oczekiwano obiektu JSON.")
+        clean = mobile.validate(payload)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    db.set_app_settings(clean)
+    mobile.apply(clean)
+    return mobile.public_view(db.get_app_settings())
 
 
 @app.exception_handler(HTTPException)

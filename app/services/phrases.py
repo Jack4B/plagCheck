@@ -7,6 +7,7 @@ na cały dokument, żeby nie odpytywać tylko wstępu.
 """
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
 from urllib.parse import quote_plus
 
@@ -82,21 +83,63 @@ def best_phrase_in_sentence(doc: Document, s_idx: int, min_words: int, max_words
     return best
 
 
+def _spread(candidates: list, limit: int, score) -> list:
+    """Równomierne pokrycie dokumentu: `limit` koszyków, z każdego najlepszy kandydat."""
+    if limit <= 0 or not candidates:
+        return []
+    if len(candidates) <= limit:
+        return candidates
+    chosen = []
+    bucket = len(candidates) / limit
+    for b in range(limit):
+        part = candidates[int(b * bucket):int((b + 1) * bucket)] or [candidates[min(int(b * bucket), len(candidates) - 1)]]
+        chosen.append(max(part, key=score))
+    return chosen
+
+
+@dataclass
+class KeywordQuery:
+    """Zapytanie bez cudzysłowu z najrzadszych słów zdania — znajduje źródła także dla parafraz."""
+
+    text: str
+    sentence: int
+    score: float
+
+    @property
+    def query(self) -> str:
+        return self.text
+
+
+def generate_keyword_queries(
+    doc: Document, limit: int, words: int = 6, skip_sentences: set[int] | None = None
+) -> list[KeywordQuery]:
+    skip = skip_sentences or set()
+    freq = Counter(t.stem for t in doc.tokens if t.excluded is None and is_content_word(t.folded))
+    candidates = []
+    for s in doc.sentences:
+        if s.excluded or s.index in skip:
+            continue
+        toks = [
+            t for t in doc.tokens[s.tok_start:s.tok_end]
+            if t.excluded is None and is_content_word(t.folded) and not any(ch.isdigit() for ch in t.text)
+        ]
+        if len(toks) < 8:
+            continue
+        unique: dict[str, object] = {}
+        for t in toks:
+            unique.setdefault(t.stem, t)
+        # rzadkie w całym dokumencie i długie słowa niosą najwięcej informacji o temacie zdania
+        ranked = sorted(unique.values(), key=lambda t: (freq[t.stem], -len(t.folded)))[:words]
+        ranked.sort(key=lambda t: t.start)
+        score = sum(len(t.folded) for t in ranked) / len(ranked) - 0.5 * sum(freq[t.stem] > 2 for t in ranked)
+        candidates.append(KeywordQuery(" ".join(t.text for t in ranked), s.index, score))
+    return _spread(candidates, limit, lambda q: q.score)
+
+
 def generate_phrases(doc: Document, limit: int, min_words: int = 10, max_words: int = 15) -> list[Phrase]:
     candidates = [
         p
         for i in range(len(doc.sentences))
         if (p := best_phrase_in_sentence(doc, i, min_words, max_words)) is not None
     ]
-    if limit <= 0 or not candidates:
-        return []
-    if len(candidates) <= limit:
-        return candidates
-    # Równomierne pokrycie dokumentu: dzielimy kandydatów na `limit` koszyków
-    # i z każdego bierzemy frazę o najwyższym wyniku.
-    chosen = []
-    bucket = len(candidates) / limit
-    for b in range(limit):
-        part = candidates[int(b * bucket):int((b + 1) * bucket)] or [candidates[min(int(b * bucket), len(candidates) - 1)]]
-        chosen.append(max(part, key=lambda p: p.score))
-    return chosen
+    return _spread(candidates, limit, lambda p: p.score)

@@ -125,7 +125,7 @@ h3 { font-size: 15px; margin: 0 0 8px; }
   display: inline-flex; gap: 8px; align-items: center; margin-top: 12px; padding: 6px 10px;
   border-radius: 999px; background: var(--primary-soft); color: var(--primary); font-weight: 600; font-size: 13px;
 }
-textarea, input[type=text], input[type=password] {
+textarea, input[type=text], input[type=password], input[type=number], input[type=email] {
   width: 100%; font: inherit; color: var(--text); background: var(--surface);
   border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px;
 }
@@ -240,3 +240,10 @@ dialog input { margin: 8px 0 14px; }
   .doc-text { max-height: none; border: none; padding: 0; }
   body { background: #fff; color: #000; }
 }
+
+/* Ustawienia (APK) */
+.settings-group { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px 14px; margin: 0 0 14px; }
+.settings-group legend { font-weight: 700; padding: 0 6px; }
+.setting { display: grid; gap: 6px; margin-top: 10px; }
+.setting .row input { flex: 1; min-width: 0; }
+.settings-group .option { margin-top: 10px; }

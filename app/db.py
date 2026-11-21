@@ -83,6 +83,14 @@ ref_fingerprints = Table(
     Index("ix_ref_fingerprints_ref", "ref_id"),
 )
 
+# Ustawienia edytowalne w aplikacji (tylko tryb mobilny — na serwerze konfiguracja jest w .env).
+app_settings = Table(
+    "app_settings",
+    metadata,
+    Column("key", String(64), primary_key=True),
+    Column("value", Text, nullable=False),
+)
+
 search_cache = Table(
     "search_cache",
     metadata,
@@ -367,6 +375,21 @@ def reference_stats(owner: str) -> dict:
             .where(or_(reference_docs.c.owner == owner, reference_docs.c.owner == ""))
         ).first()
     return {"count": int(row[0]), "words": int(row[1])}
+
+
+# ------------------------------------------------------------- app settings
+
+
+def get_app_settings() -> dict[str, str]:
+    with get_engine().connect() as conn:
+        return {k: v for k, v in conn.execute(select(app_settings.c.key, app_settings.c.value))}
+
+
+def set_app_settings(values: dict[str, str]) -> None:
+    with get_engine().begin() as conn:
+        for key, value in values.items():
+            conn.execute(delete(app_settings).where(app_settings.c.key == key))
+            conn.execute(insert(app_settings).values(key=key, value=str(value)))
 
 
 # ---------------------------------------------------------------- search cache

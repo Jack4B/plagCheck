@@ -1,0 +1,97 @@
+# Budowa aplikacji na Androida (APK) — wszystko w telefonie, bez serwera.
+#
+# 1. Konwersja modelu parafraz (paraphrase-multilingual-MiniLM-L12-v2) do formatu numpy
+#    i weryfikacja z oryginałem (tokenizacja + cosinus embeddingów) — CI pada, jeśli się różnią.
+# 2. Kopiowanie rdzenia aplikacji (app/) i modelu do projektu Androida.
+# 3. Gradle + Chaquopy → podpisany APK do instalacji z pliku (artefakt "PlagCheck-APK").
+name: Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "app/**"
+      - "mobile/**"
+      - ".github/workflows/android.yml"
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"   # musi zgadzać się z chaquopy.version w app/build.gradle.kts
+
+      - name: Narzędzia ML (tylko do konwersji modelu)
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install "sentence-transformers==6.3.0" numpy pytest httpx -r requirements.txt
+
+      - name: Test zgodności enkodera numpy (losowy model, transformers jako referencja)
+        run: python -m pytest tests/test_minilm_numpy.py -o addopts="" -q
+
+      - name: Cache modelu
+        id: model-cache
+        uses: actions/cache@v4
+        with:
+          path: mobile/build/model
+          key: model-v1-${{ hashFiles('mobile/model/convert.py', 'app/services/minilm_numpy.py') }}
+
+      - name: Konwersja modelu
+        if: steps.model-cache.outputs.cache-hit != 'true'
+        run: python mobile/model/convert.py mobile/build/model
+
+      - name: Weryfikacja modelu z oryginałem
+        run: python mobile/model/verify.py mobile/build/model
+
+      - name: Przygotowanie źródeł Androida
+        run: |
+          PY=mobile/android/app/src/main/python
+          rm -rf "$PY" mobile/android/app/src/main/assets/model
+          mkdir -p "$PY" mobile/android/app/src/main/assets/model
+          cp -R app "$PY/app"
+          find "$PY" -name '__pycache__' -type d -prune -exec rm -rf {} +
+          cp mobile/build/model/plagcheck_model.npz mobile/build/model/config.json mobile/android/app/src/main/assets/model/
+          du -sh "$PY" mobile/android/app/src/main/assets/model
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+
+      - name: Budowa APK
+        working-directory: mobile/android
+        run: gradle assembleRelease --stacktrace
+
+      - name: Nazwa pliku
+        id: apk
+        run: |
+          VERSION=$(python -c 'import re;print(re.search(r"__version__ = \"(.+?)\"", open("app/__init__.py").read()).group(1))')
+          cp mobile/android/app/build/outputs/apk/release/app-release.apk "PlagCheck-$VERSION.apk"
+          sha256sum "PlagCheck-$VERSION.apk" | tee "PlagCheck-$VERSION.apk.sha256"
+          ls -la "PlagCheck-$VERSION.apk"
+          echo "name=PlagCheck-$VERSION" >> "$GITHUB_OUTPUT"
+          { echo "### 📱 PlagCheck $VERSION"; echo "APK: PlagCheck-$VERSION.apk ($(du -h "PlagCheck-$VERSION.apk" | cut -f1))"; } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.apk.outputs.name }}
+          path: |
+            PlagCheck-*.apk
+            PlagCheck-*.apk.sha256
+          retention-days: 14
+          compression-level: 0

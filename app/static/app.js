@@ -79,12 +79,13 @@ function route() {
   const hash = location.hash || "#/";
   const [, page, id] = hash.split("/");
   document.querySelectorAll("[data-nav]").forEach((a) => a.classList.remove("active"));
-  const nav = page === "history" || page === "job" ? "history" : page === "refs" ? "refs" : "new";
+  const nav = page === "history" || page === "job" ? "history" : page === "refs" ? "refs" : page === "settings" ? "settings" : "new";
   document.querySelector(`[data-nav="${nav}"]`)?.classList.add("active");
   view.replaceChildren();
   if (page === "job" && id) renderJob(id);
   else if (page === "history") renderHistory();
   else if (page === "refs") renderRefs();
+  else if (page === "settings" && health?.mobile) renderSettings();
   else renderNew();
   window.scrollTo(0, 0);
 }
@@ -230,7 +231,7 @@ function renderReport(job, r) {
     h("div", { class: "spacer" }),
     h("div", { class: "row no-print" },
       h("button", { class: "btn sm", onclick: () => exportHtml(job) }, "Eksport HTML"),
-      h("button", { class: "btn sm", onclick: () => window.print() }, "Drukuj / PDF"),
+      h("button", { class: "btn sm", onclick: () => (window.AndroidBridge ? window.AndroidBridge.printPage(r.filename) : window.print()) }, "Drukuj / PDF"),
       h("button", { class: "btn sm danger", onclick: async () => {
         if (!confirm("Usunąć ten raport?")) return;
         await api(`/api/jobs/${job.id}`, { method: "DELETE" });
@@ -416,6 +417,11 @@ function phrasesPanel(r) {
 
 async function exportHtml(job) {
   const res = await api(`/api/jobs/${job.id}/export.html`, { raw: true });
+  if (window.AndroidBridge) {  // WebView nie obsługuje pobierania blob: — zapis przez Androida
+    const name = `raport_${job.filename.replace(/\.[^.]+$/, "")}.html`;
+    window.AndroidBridge.toast(window.AndroidBridge.saveFile(name, "text/html", await res.text()));
+    return;
+  }
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);
   const a = h("a", { href: url, download: `raport_${job.filename.replace(/\.[^.]+$/, "")}.html` });
@@ -494,11 +500,107 @@ async function renderRefs() {
   } catch (e) { list.replaceChildren(h("div", { class: "alert error" }, e.message)); }
 }
 
+// ------------------------------------------------------------ ustawienia (APK)
+const SETTINGS_FORM = [
+  ["Wyszukiwarka internetowa (opcjonalnie)", "Klucz API dodaje wyniki z całego internetu. Bez klucza przeszukiwane są Wikipedia i OpenAlex.", [
+    ["BRAVE_API_KEY", "secret", "Brave Search API"],
+    ["SERPER_API_KEY", "secret", "Serper (Google)"],
+    ["SERPAPI_API_KEY", "secret", "SerpAPI (Google)"],
+  ]],
+  ["Darmowe źródła", "", [
+    ["SEARCH_WIKIPEDIA", "bool", "Wikipedia"],
+    ["SEARCH_OPENALEX", "bool", "OpenAlex — publikacje naukowe"],
+    ["OPENALEX_MAILTO", "text", "E-mail dla OpenAlex (opcjonalnie, szybsze odpowiedzi)"],
+  ]],
+  ["Zakres wyszukiwania", "Więcej zapytań = wyższa skuteczność, ale dłuższa analiza i większe zużycie limitu płatnego API.", [
+    ["MAX_WEB_QUERIES", "int", "Frazy dokładne na źródło"],
+    ["KEYWORD_QUERIES", "int", "Zapytania słowami kluczowymi (wykrywają parafrazy)"],
+    ["KEYWORD_QUERIES_WEB", "bool", "Słowa kluczowe także do płatnej wyszukiwarki"],
+    ["MAX_PAGES_FETCHED", "int", "Maks. stron pobieranych do porównania"],
+  ]],
+  ["Wykrywanie parafraz", "Niższy próg = więcej wykrytych parafraz, ale też więcej fałszywych trafień.", [
+    ["SEMANTIC_ENABLED", "bool", "Model znaczeniowy (synonimy) — działa w telefonie"],
+    ["SEMANTIC_THRESHOLD", "float", "Próg modelu znaczeniowego (0,5–0,98)"],
+    ["PARAPHRASE_THRESHOLD", "float", "Próg parafraz leksykalnych (0,3–0,95)"],
+  ]],
+];
+const PRESETS = {
+  max: { MAX_WEB_QUERIES: 80, KEYWORD_QUERIES: 60, MAX_PAGES_FETCHED: 40, SEMANTIC_ENABLED: true, SEMANTIC_THRESHOLD: 0.78, PARAPHRASE_THRESHOLD: 0.55 },
+  std: { MAX_WEB_QUERIES: 40, KEYWORD_QUERIES: 30, MAX_PAGES_FETCHED: 24, SEMANTIC_ENABLED: true, SEMANTIC_THRESHOLD: 0.8, PARAPHRASE_THRESHOLD: 0.6 },
+};
+
+async function renderSettings() {
+  const card = h("section", { class: "card" }, h("p", { class: "muted" }, "Wczytywanie…"));
+  view.append(h("h1", {}, "Ustawienia"), h("p", { class: "muted" }, "Ustawienia są zapisane tylko w tym telefonie."), card);
+  let current;
+  try { current = await api("/api/settings"); } catch (e) { card.replaceChildren(h("div", { class: "alert error" }, e.message)); return; }
+  const inputs = {};
+  const msg = h("div", { class: "alert hidden", role: "status" });
+  const field = ([key, kind, label]) => {
+    const id = `set-${key}`;
+    let input;
+    if (kind === "bool") {
+      input = h("input", { type: "checkbox", id });
+      input.checked = !!current[key];
+      if (key === "SEMANTIC_ENABLED" && !current._model_available) { input.disabled = true; input.checked = false; }
+      inputs[key] = input;
+      return h("label", { class: "option", for: id }, input, h("div", {}, h("b", {}, label),
+        key === "SEMANTIC_ENABLED" && !current._model_available ? h("span", {}, "Model nie jest dołączony do tej wersji aplikacji.") : null));
+    }
+    if (kind === "secret") {
+      input = h("input", { type: "password", id, autocomplete: "off", placeholder: current[key].set ? `zapisany (${current[key].hint}) — wpisz nowy, aby zmienić` : "nie ustawiono" });
+      const clear = current[key].set ? h("button", { class: "btn sm danger", type: "button", onclick: () => { input.value = ""; input.dataset.clear = "1"; input.placeholder = "zostanie usunięty po zapisaniu"; } }, "Usuń") : null;
+      inputs[key] = input;
+      return h("div", { class: "setting" }, h("label", { for: id }, h("b", {}, label)), h("div", { class: "row" }, input, clear));
+    }
+    input = h("input", { type: kind === "text" ? "text" : "number", id, step: kind === "float" ? "0.01" : "1", inputmode: kind === "text" ? "email" : "decimal" });
+    input.value = current[key] ?? "";
+    inputs[key] = input;
+    return h("div", { class: "setting" }, h("label", { for: id }, h("b", {}, label)), input);
+  };
+  const applyPreset = (p) => Object.entries(PRESETS[p]).forEach(([k, v]) => {
+    const el = inputs[k]; if (!el || el.disabled) return;
+    if (el.type === "checkbox") el.checked = v; else el.value = v;
+  });
+  const form = h("form", { onsubmit: async (e) => {
+    e.preventDefault();
+    const payload = {};
+    for (const [key, el] of Object.entries(inputs)) {
+      if (el.disabled) continue;
+      if (el.type === "checkbox") { if (el.checked !== !!current[key]) payload[key] = el.checked; }
+      else if (el.type === "password") { if (el.value.trim()) payload[key] = el.value.trim(); else if (el.dataset.clear) payload[key] = ""; }
+      else if (String(el.value) !== String(current[key] ?? "")) payload[key] = el.type === "number" ? Number(el.value) : el.value;
+    }
+    if (!Object.keys(payload).length) { msg.className = "alert"; msg.textContent = "Brak zmian."; return; }
+    try {
+      current = await api("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      health = await (await fetch("/api/health")).json();
+      route();
+      window.AndroidBridge?.toast("Zapisano ustawienia");
+    } catch (ex) { msg.className = "alert error"; msg.textContent = ex.message; }
+  } },
+    h("div", { class: "row", style: { marginBottom: "12px" } },
+      h("span", { class: "muted small" }, "Szybki wybór:"),
+      h("button", { class: "btn sm", type: "button", onclick: () => applyPreset("max") }, "Maksymalna skuteczność"),
+      h("button", { class: "btn sm", type: "button", onclick: () => applyPreset("std") }, "Domyślne")),
+    SETTINGS_FORM.map(([title, hint, fields]) => h("fieldset", { class: "settings-group" },
+      h("legend", {}, title), hint ? h("p", { class: "muted small" }, hint) : null, fields.map(field))),
+    msg,
+    h("div", { class: "row end", style: { marginTop: "12px" } }, h("button", { class: "btn primary", type: "submit" }, "Zapisz")),
+  );
+  card.replaceChildren(form);
+}
+
 // ------------------------------------------------------------------------ start
 (async () => {
   try {
     health = await (await fetch("/api/health")).json();
-    document.getElementById("footer-info").textContent = `PlagCheck ${health.version}`;
+    document.getElementById("footer-info").textContent = `PlagCheck ${health.version}${health.mobile ? " · aplikacja na telefon" : ""}`;
+    if (health.mobile) {
+      document.getElementById("nav-settings").classList.remove("hidden");
+      const note = document.querySelector(".footer span:last-child");
+      if (note) note.textContent = "Dokumenty i raporty są przechowywane tylko w tym telefonie. ORPPD i prywatne bazy uczelni nie są przeszukiwane.";
+    }
   } catch { /* offline */ }
   route();
 })();

@@ -18,6 +18,15 @@ from typing import Protocol
 log = logging.getLogger("plagcheck.semantic")
 
 DEFAULT_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+MODEL_FILE = "plagcheck_model.npz"  # format modelu dla telefonu (numpy, bez PyTorcha)
+CONFIG_FILE = "config.json"
+
+
+def is_model_dir(path) -> bool:
+    """Czy katalog zawiera model w formacie PlagCheck (sprawdzenie bez importu numpy)."""
+    import os
+
+    return bool(path) and os.path.isfile(os.path.join(path, MODEL_FILE)) and os.path.isfile(os.path.join(path, CONFIG_FILE))
 MAX_SOURCE_SENTENCES = 2000
 
 
@@ -50,13 +59,22 @@ _engines: dict[str, Encoder | None] = {}
 
 
 def get_encoder(model_name: str) -> Encoder | None:
-    """Zwraca (współdzielony) enkoder albo None, jeśli profil full jest niedostępny."""
+    """Zwraca (współdzielony) enkoder albo None, jeśli profil full jest niedostępny.
+
+    SEMANTIC_MODEL może być nazwą modelu sentence-transformers (Docker) albo katalogiem
+    z modelem w formacie PlagCheck (numpy, bez PyTorcha — aplikacja na telefon).
+    """
     if not model_name:
         return None
     with _engine_lock:
         if model_name not in _engines:
             try:
-                _engines[model_name] = SentenceTransformerEncoder(model_name)
+                if is_model_dir(model_name):
+                    from .minilm_numpy import NumpyEncoder
+
+                    _engines[model_name] = NumpyEncoder(model_name)
+                else:
+                    _engines[model_name] = SentenceTransformerEncoder(model_name)
                 log.info("Silnik semantyczny aktywny: %s", model_name)
             except Exception as exc:  # brak bibliotek/modelu → profil lite
                 log.warning("Silnik semantyczny niedostępny (%s) — tryb lite.", exc)
@@ -64,9 +82,14 @@ def get_encoder(model_name: str) -> Encoder | None:
         return _engines[model_name]
 
 
-def semantic_available() -> bool:
+def semantic_available(model_name: str = "") -> bool:
     try:
         import numpy  # noqa: F401
+    except Exception:
+        return False
+    try:
+        if model_name and is_model_dir(model_name):
+            return True
         import sentence_transformers  # noqa: F401
     except Exception:
         return False

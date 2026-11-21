@@ -63,6 +63,8 @@ class Settings:
     serpapi_api_key: str
     search_lang: str
     max_web_queries: int
+    keyword_queries: int  # zapytania bez cudzysłowu (parafrazy) do darmowych źródeł
+    keyword_queries_web: bool  # także do płatnej wyszukiwarki (zużywa limit API)
     max_pages_fetched: int
     search_cache_hours: int
     http_timeout: float
@@ -84,6 +86,7 @@ class Settings:
     # Zadania w tle
     worker_mode: str  # thread | cron
     max_concurrent_jobs: int
+    mobile_mode: bool  # aplikacja na telefonie (APK): ustawienia edytowalne w UI
     job_stale_minutes: int
     extra: dict = field(default_factory=dict)
 
@@ -112,6 +115,8 @@ def get_settings() -> Settings:
         serpapi_api_key=os.environ.get("SERPAPI_API_KEY", ""),
         search_lang=os.environ.get("SEARCH_LANG") or "pl",
         max_web_queries=_int("MAX_WEB_QUERIES", 25),
+        keyword_queries=_int("KEYWORD_QUERIES", 15),
+        keyword_queries_web=_bool("KEYWORD_QUERIES_WEB", False),
         max_pages_fetched=_int("MAX_PAGES_FETCHED", 12),
         search_cache_hours=_int("SEARCH_CACHE_HOURS", 24 * 7),
         http_timeout=_float("HTTP_TIMEOUT", 10.0),
@@ -128,5 +133,6 @@ def get_settings() -> Settings:
         report_ttl_hours=_int("REPORT_TTL_HOURS", 72),
         worker_mode=(os.environ.get("WORKER_MODE") or "thread").strip().lower(),
         max_concurrent_jobs=max(1, _int("MAX_CONCURRENT_JOBS", 2)),
+        mobile_mode=_bool("MOBILE_MODE", False),
         job_stale_minutes=_int("JOB_STALE_MINUTES", 15),
     )

@@ -10,7 +10,7 @@ from urllib.parse import urlsplit
 from .config import Settings
 from .services.ai_detector import detect_ai
 from .services.fingerprints import kgram_hashes
-from .services.phrases import Phrase, generate_phrases
+from .services.phrases import Phrase, generate_keyword_queries, generate_phrases
 from .services.preprocessor import PreprocessOptions, preprocess
 from .services.report import SourceHit, build_report
 from .services.similarity import DocumentIndex, compare
@@ -31,6 +31,9 @@ DEFAULT_OPTIONS = {
 }
 
 KIND_BY_PROVIDER = {"wikipedia": "wikipedia", "openalex": "scholar"}
+# Darmowe źródła bez limitu kosztowego — dostają też zapytania słowami kluczowymi.
+KEYWORD_PROVIDERS = {"wikipedia", "openalex"}
+KEYWORD_HIT_WEIGHT = 0.5  # ogólne trafienia z zapytań bez cudzysłowu ważą mniej przy wyborze stron
 
 
 class ReferenceSource(Protocol):
@@ -52,20 +55,23 @@ def _host(url: str) -> str:
 
 def _search_all(
     searchers: list[CachedSearcher],
-    phrases: list[Phrase],
+    plans: dict[int, list[tuple[str, int | None]]],
     progress: Progress,
     warnings: list[str],
-) -> list[tuple[CachedSearcher, int, list]]:
-    """Każde źródło przeszukuje wszystkie frazy we własnym wątku (własny limit zapytań/s)."""
-    total = max(1, len(searchers) * len(phrases))
+) -> list[tuple[CachedSearcher, int | None, list]]:
+    """Każde źródło przeszukuje swoją listę zapytań we własnym wątku (własny limit zapytań/s).
+
+    plans[id(searcher)] = [(zapytanie, indeks frazy dokładnej albo None dla słów kluczowych)]
+    """
+    total = max(1, sum(len(plans[id(s)]) for s in searchers))
     done = [0]
     lock = threading.Lock()
 
     def run(searcher: CachedSearcher):
         found, errors = [], 0
-        for k, phrase in enumerate(phrases):
+        for k, (query, phrase_idx) in enumerate(plans[id(searcher)]):
             try:
-                found.append((searcher, k, searcher.search(phrase.query)))
+                found.append((searcher, phrase_idx, searcher.search(query)))
             except SearchError as exc:
                 errors += 1
                 log.warning("%s: %s", searcher.provider.name, exc)
@@ -129,10 +135,15 @@ def run_analysis(
         settings.phrase_max_words,
     )
     phrase_rows = [{"text": p.text, "google_url": p.google_url, "found": False, "hits": 0} for p in phrases]
+    keyword_queries = (
+        # te same zdania mogą dostać oba typy zapytań: cytat znajduje kopię, słowa kluczowe — parafrazę
+        generate_keyword_queries(doc, settings.keyword_queries)
+        if web_enabled else []
+    )
     sources: list[SourceHit] = []
     search_info = {
         "providers": [s.provider.name for s in searchers] if web_enabled else [],
-        "queries_sent": 0, "cache_hits": 0, "pages_fetched": 0,
+        "queries_sent": 0, "cache_hits": 0, "pages_fetched": 0, "keyword_queries": len(keyword_queries),
         "semantic": getattr(encoder, "name", None),
     }
 
@@ -144,18 +155,27 @@ def run_analysis(
         )
     if web_enabled:
         url_hits: dict[str, dict] = {}
-        for searcher, k, results in _search_all(searchers, phrases, progress, warnings):
-            folded_phrase = fold(phrases[k].text)
+        plans = {}
+        for s in searchers:
+            plan: list[tuple[str, int | None]] = [(p.query, k) for k, p in enumerate(phrases)]
+            if s.provider.name in KEYWORD_PROVIDERS or settings.keyword_queries_web:
+                plan += [(q.query, None) for q in keyword_queries]
+            plans[id(s)] = plan
+        for searcher, k, results in _search_all(searchers, plans, progress, warnings):
+            folded_phrase = fold(phrases[k].text) if k is not None else None
             for r in results:
                 entry = url_hits.setdefault(
-                    r.url, {"title": r.title, "hits": 0, "snippets": [], "phrases": set(), "provider": searcher.provider}
+                    r.url, {"title": r.title, "hits": 0.0, "snippets": [], "phrases": set(), "provider": searcher.provider}
                 )
+                entry["snippets"].append(r.snippet)
+                if k is None:
+                    entry["hits"] += KEYWORD_HIT_WEIGHT
+                    continue
                 entry["hits"] += 1
                 entry["phrases"].add(k)
-                entry["snippets"].append(r.snippet)
                 if folded_phrase[:60] in fold(r.snippet):
                     entry["hits"] += 2  # fraza widoczna dosłownie w snippecie
-            if results:
+            if results and k is not None:
                 phrase_rows[k]["hits"] += len(results)
         search_info["queries_sent"] = sum(s.queries_sent for s in searchers)
         search_info["cache_hits"] = sum(s.cache_hits for s in searchers)

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="pc_bg">#12151C</color>
+    <color name="pc_primary">#8EA6FF</color>
+    <color name="pc_text">#E6E8EE</color>
+    <style name="Theme.PlagCheck" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/pc_primary</item>
+        <item name="android:windowBackground">@color/pc_bg</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+</resources>
