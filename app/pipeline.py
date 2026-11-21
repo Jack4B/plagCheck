@@ -106,6 +106,7 @@ def _search_all(
             except RateLimited as exc:
                 st["errors"] += 1
                 st["stopped"] = "ograniczenie liczby zapytań (429)"
+                st["detail"] = str(exc)[:300]
                 log.warning("%s: %s", name, exc)
                 with lock:
                     warnings.append(
@@ -115,6 +116,7 @@ def _search_all(
                 break
             except SearchError as exc:
                 st["errors"] += 1
+                st["detail"] = str(exc)[:300]
                 errors += 1
                 log.warning("%s: %s", searcher.provider.name, exc)
                 if errors >= 3 and errors > k // 2:

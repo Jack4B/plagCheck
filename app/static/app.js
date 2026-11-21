@@ -376,7 +376,8 @@ function searchStats(r) {
     Object.entries(stats).map(([name, st]) => h("div", { class: "reason small" },
       h("b", {}, SOURCE_NAMES[name] || name), `: ${st.done} z ${st.planned} zapytań`,
       st.errors ? ` · błędy: ${st.errors}` : "",
-      st.stopped ? h("span", { class: "muted" }, ` · zatrzymano: ${st.stopped}`) : null)));
+      st.stopped ? h("span", { class: "muted" }, ` · zatrzymano: ${st.stopped}`) : null,
+      st.detail ? h("div", { class: "muted small" }, "Odpowiedź serwera: ", st.detail) : null)));
 }
 
 function sourcesPanel(r) {

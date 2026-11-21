@@ -210,7 +210,19 @@ def _get_json(url: str, headers: dict | None = None, timeout: float = 10.0, body
             if exc.code in RETRY_STATUSES:
                 _throttle.penalize(host or "")
             if exc.code in RETRY_STATUSES and attempt >= MAX_RETRIES:
-                raise RateLimited(f"HTTP {exc.code} od {host} (ograniczenie liczby zapytań)") from exc
+                # diagnostyka: co dokładnie mówi serwer (treść odpowiedzi + Retry-After)
+                try:
+                    body = exc.read(400).decode("utf-8", errors="replace")
+                except Exception:
+                    body = ""
+                body = " ".join(html_to_text(body).split())[:200] if "<" in body else " ".join(body.split())[:200]
+                retry_after = exc.headers.get("Retry-After") if exc.headers else None
+                detail = f"HTTP {exc.code} od {host}"
+                if retry_after:
+                    detail += f", Retry-After: {retry_after} s"
+                if body:
+                    detail += f" — {body}"
+                raise RateLimited(detail) from exc
             if exc.code in RETRY_STATUSES and attempt < MAX_RETRIES:
                 # serwer prosi o zwolnienie — czekamy (Retry-After albo 2, 4, 8 s) i ponawiamy
                 retry_after = exc.headers.get("Retry-After") if exc.headers else None

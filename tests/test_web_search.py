@@ -197,3 +197,14 @@ def test_user_agent_contact_only_when_user_sets_it(monkeypatch):
     assert "@" not in web_search.user_agent() and web_search.user_agent().startswith("PlagCheck/")
     monkeypatch.setenv("OPENALEX_MAILTO", "ja@example.org")
     assert "ja@example.org" in web_search.user_agent()
+
+
+def test_rate_limit_error_carries_server_message(monkeypatch):
+    monkeypatch.setattr(web_search.time, "sleep", lambda s: None)
+    server, _ = _serve([(429, {"Retry-After": "120"}, b'{"error": "Daily limit exceeded for anonymous users"}')])
+    try:
+        with pytest.raises(web_search.RateLimited) as err:
+            web_search._get_json(f"http://127.0.0.1:{server.server_port}/api")
+    finally:
+        server.shutdown()
+    assert "Retry-After: 120" in str(err.value) and "Daily limit exceeded" in str(err.value)

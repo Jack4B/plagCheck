@@ -62,11 +62,12 @@ Zakładka **Ustawienia**:
 
 ## „Źródło ograniczyło liczbę zapytań” (HTTP 429)
 
-Wikipedia i OpenAlex liczą limity **na adres IP**. Przez VPN (ikona klucza na pasku stanu)
-lub w sieci komórkowej ten sam adres ma wiele osób, więc limit bywa wyczerpany, zanim
-PlagCheck wyśle pierwsze zapytanie.
-- Wyklucz PlagCheck z VPN (w aplikacji VPN: *Split tunneling* / *Wykluczone aplikacje*)
-  albo sprawdzaj pracę z wyłączonym VPN, najlepiej przez domowe Wi-Fi.
+Wikipedia i OpenAlex liczą limity **na adres IP**. Prawdziwy VPN zmieniający adres (np. AdGuard
+VPN) albo sieć komórkowa oznacza adres współdzielony z wieloma osobami — limit bywa wyczerpany,
+zanim PlagCheck wyśle pierwsze zapytanie. Blokery reklam w trybie „lokalnego VPN” (np. AdGuard
+Ad Blocker) adresu nie zmieniają.
+- Dokładną przyczynę pokazuje raport: *Źródła → Przebieg wyszukiwania → Odpowiedź serwera*.
+- Przy VPN zmieniającym adres: wyklucz PlagCheck (*Split tunneling* / *Wykluczone aplikacje*).
 - Udane zapytania są zapamiętywane — ponowne sprawdzenie tej samej pracy dokończy brakujące.
 - Klucz **Serper** (serper.dev, 2 500 darmowych zapytań na start) albo **Brave** w Ustawieniach
   daje wyniki z całego internetu niezależnie od limitów Wikipedii i OpenAlex.
