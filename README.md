@@ -53,7 +53,7 @@ SSH_KEY=~/.ssh/oracle.key ./deploy/oracle/deploy.sh IP_SERWERA [--domain plagiat
 albo z gotowej paczki (`./scripts/build_package.sh oracle`):
 
 ```bash
-scp -i ~/.ssh/oracle.key plagcheck-oracle-1.2.1.tar.gz ubuntu@IP: && ssh -t -i ~/.ssh/oracle.key ubuntu@IP 'tar -xzf plagcheck-oracle-1.2.1.tar.gz && sudo bash plagcheck-oracle-1.2.1/setup.sh'
+scp -i ~/.ssh/oracle.key plagcheck-oracle-1.3.0.tar.gz ubuntu@IP: && ssh -t -i ~/.ssh/oracle.key ubuntu@IP 'tar -xzf plagcheck-oracle-1.3.0.tar.gz && sudo bash plagcheck-oracle-1.3.0/setup.sh'
 ```
 
 ## Wdrożenie na CT8 (lite)
@@ -62,10 +62,10 @@ scp -i ~/.ssh/oracle.key plagcheck-oracle-1.2.1.tar.gz ubuntu@IP: && ssh -t -i ~
 ./deploy/ct8/deploy.sh LOGIN sN.ct8.pl [DOMENA]     # buduje paczkę, wysyła scp, instaluje przez ssh
 ```
 
-albo ręcznie z gotowej paczki (`./scripts/build_package.sh ct8` → `dist/plagcheck-ct8-1.2.1.tar.gz`):
+albo ręcznie z gotowej paczki (`./scripts/build_package.sh ct8` → `dist/plagcheck-ct8-1.3.0.tar.gz`):
 
 ```bash
-scp dist/plagcheck-ct8-1.2.1.tar.gz LOGIN@sN.ct8.pl: && ssh -t LOGIN@sN.ct8.pl 'tar -xzf plagcheck-ct8-1.2.1.tar.gz && bash plagcheck-ct8-1.2.1/install.sh LOGIN.ct8.pl'
+scp dist/plagcheck-ct8-1.3.0.tar.gz LOGIN@sN.ct8.pl: && ssh -t LOGIN@sN.ct8.pl 'tar -xzf plagcheck-ct8-1.3.0.tar.gz && bash plagcheck-ct8-1.3.0/install.sh LOGIN.ct8.pl'
 ```
 
 Szczegóły, MySQL, HTTPS, diagnostyka: **[docs/DEPLOY_CT8.md](docs/DEPLOY_CT8.md)**.

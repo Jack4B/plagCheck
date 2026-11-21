@@ -31,7 +31,8 @@ przekazywania komukolwiek haseł czy kluczy — wszystko robisz sam, u siebie.
 
 ## 0. Co dostaniesz — jak wygląda aplikacja
 
-PlagCheck to **strona internetowa** (aplikacja webowa). Po instalacji otwierasz ją w dowolnej
+PlagCheck to **strona internetowa**: pod głównym adresem jest strona z opisem narzędzia
+(landing page), a pod `/app` — sama aplikacja. Po instalacji otwierasz ją w dowolnej
 przeglądarce — na komputerze lub telefonie — pod adresem w rodzaju
 `https://152-70-1-2.sslip.io` albo pod własną domeną, np. `https://plagiat.mojadomena.pl`.
 Nie trzeba niczego instalować na komputerach użytkowników.
@@ -128,7 +129,7 @@ Reguła dla portu 22 (SSH) już istnieje — nie usuwaj jej.
 ### 4.1. Pliki
 
 W jednym folderze (np. `Pobrane`) umieść:
-- paczkę **`plagcheck-oracle-1.2.1.tar.gz`**,
+- paczkę **`plagcheck-oracle-1.3.0.tar.gz`**,
 - klucz prywatny z kroku 2 — dla wygody zmień jego nazwę na **`oracle.key`**.
 
 ### 4.2. Terminal
@@ -175,13 +176,13 @@ Wklej do terminala (zamień **oba** wystąpienia `152.70.1.2` na swój IP):
 **Windows (PowerShell), macOS, Linux — identycznie:**
 
 ```bash
-scp -i oracle.key plagcheck-oracle-1.2.1.tar.gz ubuntu@152.70.1.2: ; ssh -t -i oracle.key ubuntu@152.70.1.2 "tar -xzf plagcheck-oracle-1.2.1.tar.gz && sudo bash plagcheck-oracle-1.2.1/setup.sh"
+scp -i oracle.key plagcheck-oracle-1.3.0.tar.gz ubuntu@152.70.1.2: ; ssh -t -i oracle.key ubuntu@152.70.1.2 "tar -xzf plagcheck-oracle-1.3.0.tar.gz && sudo bash plagcheck-oracle-1.3.0/setup.sh"
 ```
 
 **Z własną domeną** (najpierw rekord DNS typu **A**: `plagiat.mojadomena.pl → 152.70.1.2`):
 
 ```bash
-scp -i oracle.key plagcheck-oracle-1.2.1.tar.gz ubuntu@152.70.1.2: ; ssh -t -i oracle.key ubuntu@152.70.1.2 "tar -xzf plagcheck-oracle-1.2.1.tar.gz && sudo bash plagcheck-oracle-1.2.1/setup.sh --domain plagiat.mojadomena.pl"
+scp -i oracle.key plagcheck-oracle-1.3.0.tar.gz ubuntu@152.70.1.2: ; ssh -t -i oracle.key ubuntu@152.70.1.2 "tar -xzf plagcheck-oracle-1.3.0.tar.gz && sudo bash plagcheck-oracle-1.3.0/setup.sh --domain plagiat.mojadomena.pl"
 ```
 
 ### Co się dzieje (ok. 10–15 minut)
@@ -196,7 +197,7 @@ scp -i oracle.key plagcheck-oracle-1.2.1.tar.gz ubuntu@152.70.1.2: ; ssh -t -i o
 ==> Budowanie i uruchamianie (profil full — pierwszy build full trwa ok. 5–15 min)
 ==> Czekam na start aplikacji
 
-==> Gotowe! PlagCheck 1.2.1
+==> Gotowe! PlagCheck 1.3.0
     Adres:          https://152-70-1-2.sslip.io/
     Klucz dostępu:  Xk3vP9qLm2RtWz7a
 ```
@@ -211,8 +212,10 @@ scp -i oracle.key plagcheck-oracle-1.2.1.tar.gz ubuntu@152.70.1.2: ; ssh -t -i o
 
 ## 6. Pierwsze uruchomienie
 
-1. Otwórz w przeglądarce adres z instalatora. Jeśli przez pierwsze 1–2 minuty pojawia się
-   błąd certyfikatu, odczekaj — serwer właśnie pobiera certyfikat z Let's Encrypt.
+1. Otwórz w przeglądarce adres z instalatora. Zobaczysz **stronę główną** PlagCheck z opisem
+   narzędzia — kliknij **Otwórz aplikację** (sama aplikacja jest pod adresem `…/app`).
+   Jeśli przez pierwsze 1–2 minuty pojawia się błąd certyfikatu, odczekaj — serwer właśnie
+   pobiera certyfikat z Let's Encrypt.
 2. Wybierz plik i kliknij **Sprawdź dokument**. Przy pierwszym użyciu aplikacja poprosi o
    **klucz dostępu** — wklej go i zatwierdź. Przeglądarka go zapamięta.
 

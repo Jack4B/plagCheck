@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PlagCheck — sprawdź pracę, zanim ją oddasz</title>
+  <meta name="description" content="Samokontrola prac przed oddaniem: zapożyczenia z internetu i publikacji naukowych, parafrazy oraz cechy tekstu generowanego przez AI w jednym raporcie z podświetleniami. Nie jest zamiennikiem JSA.">
+  <meta name="color-scheme" content="light dark">
+  <meta property="og:title" content="PlagCheck — sprawdź pracę, zanim ją oddasz">
+  <meta property="og:description" content="Zapożyczenia, parafrazy i cechy tekstu AI w jednym raporcie z podświetleniami. Narzędzie do samokontroli.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="/static/img/04-raport.jpg">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23304a8c'/%3E%3Cpath d='M9 22V10h7a4 4 0 0 1 0 8h-7' stroke='white' stroke-width='3' fill='none'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/static/landing.css">
+  <script src="/static/landing.js"></script>
+</head>
+<body>
+  <a class="skip" href="#tresc">Przejdź do treści</a>
+
+  <header class="site-header">
+    <div class="wrap header-row">
+      <a class="brand" href="/" aria-label="PlagCheck — strona główna">
+        <span class="brand-mark" aria-hidden="true">P</span>PlagCheck
+      </a>
+      <nav class="site-nav" aria-label="Sekcje strony">
+        <a href="#co-sprawdza">Co sprawdza</a>
+        <a href="#jak-dziala">Jak działa</a>
+        <a href="#prywatnosc">Prywatność</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+      <a class="btn btn-primary btn-sm" href="/app">Otwórz aplikację</a>
+    </div>
+  </header>
+
+  <main id="tresc">
+    <!-- HERO -->
+    <section class="hero">
+      <div class="wrap hero-grid">
+        <div class="hero-copy">
+          <p class="eyebrow">Samokontrola prac zaliczeniowych i dyplomowych</p>
+          <h1>Sprawdź pracę, zanim ją oddasz.</h1>
+          <p class="lead">
+            PlagCheck pokazuje <mark class="hl-exact">fragmenty zbieżne ze źródłami</mark><sup class="ref">[1]</sup>,
+            <mark class="hl-para">bliskie parafrazy</mark><sup class="ref">[2]</sup> i cechy tekstu typowe
+            dla AI — w jednym raporcie z linkami do źródeł.
+          </p>
+          <div class="cta-row">
+            <a class="btn btn-primary" href="/app">Otwórz aplikację</a>
+            <a class="btn btn-ghost" href="#raport">Zobacz przykładowy raport</a>
+          </div>
+          <p class="fine">DOCX, PDF, ODT, TXT lub wklejony tekst · bez zakładania konta · analiza zwykle 1–5 minut</p>
+        </div>
+        <figure class="hero-shot shot">
+          <picture>
+            <source srcset="/static/img/14-ciemny-motyw.jpg" media="(prefers-color-scheme: dark)">
+            <img src="/static/img/04-raport.jpg" width="1400" height="897"
+                 alt="Raport PlagCheck: podobieństwo 24,4%, prawdopodobieństwo AI 71%, cztery źródła i tekst pracy z podświetlonymi fragmentami">
+          </picture>
+        </figure>
+      </div>
+    </section>
+
+    <!-- UCZCIWE ZASTRZEŻENIE -->
+    <section class="notice-band" aria-label="Zastrzeżenie">
+      <div class="wrap">
+        <p class="notice">
+          <strong>To nie jest zamiennik JSA ani komercyjnych detektorów AI.</strong>
+          PlagCheck pomaga znaleźć jawne zapożyczenia i bliskie parafrazy, zanim oddasz pracę —
+          żeby można je było poprawić albo opatrzyć przypisem. Wyniki są pomocnicze i mogą zawierać fałszywe trafienia.
+        </p>
+      </div>
+    </section>
+
+    <!-- CO SPRAWDZA -->
+    <section id="co-sprawdza" class="section">
+      <div class="wrap">
+        <h2>Trzy rzeczy, które warto sprawdzić przed oddaniem</h2>
+        <div class="features">
+          <article class="feature">
+            <span class="feature-tag tag-exact">Zapożyczenia</span>
+            <h3>Fragmenty zbieżne ze źródłami</h3>
+            <p>Wybrane frazy z Twojej pracy są wyszukiwane w <strong>Wikipedii</strong>, w katalogu publikacji
+              naukowych <strong>OpenAlex</strong> i — jeśli administrator to włączył — w wyszukiwarce internetowej.
+              Znalezione strony są porównywane z całym tekstem, także z <strong>Twoją bazą plików</strong>.</p>
+          </article>
+          <article class="feature">
+            <span class="feature-tag tag-para">Parafrazy</span>
+            <h3>Przepisane, ale wciąż cudze</h3>
+            <p>Wykrywa zdania z przestawionym szykiem i podmienionymi słowami. Przy każdej parafrazie
+              widzisz obok siebie swoje zdanie i zdanie ze źródła — łatwo ocenić, czy potrzebny jest przypis.</p>
+          </article>
+          <article class="feature">
+            <span class="feature-tag tag-ai">Tekst AI</span>
+            <h3>Cechy typowe dla modeli językowych</h3>
+            <p>Szacunek z uzasadnieniem: jednostajna długość zdań, nadmiar zwrotów typu „warto zauważyć”,
+              „odgrywa kluczową rolę”. Ocena dla całości i dla każdego fragmentu — to wskazówka, nie dowód.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- JAK DZIAŁA -->
+    <section id="jak-dziala" class="section section-alt">
+      <div class="wrap">
+        <h2>Jak to działa</h2>
+        <ol class="steps">
+          <li class="step">
+            <div class="step-text">
+              <span class="step-num" aria-hidden="true">1</span>
+              <h3>Wgraj pracę</h3>
+              <p>Przeciągnij plik DOCX, PDF, ODT lub TXT (do 15 MB) albo wklej tekst. Wybierz, co sprawdzić,
+                i czy pominąć cytaty w cudzysłowie, bibliografię oraz odwołania do aktów prawnych.</p>
+            </div>
+            <figure class="shot"><picture><source srcset="/static/img/01-nowe-sprawdzenie-dark.jpg" media="(prefers-color-scheme: dark)"><img src="/static/img/01-nowe-sprawdzenie.jpg" width="1200" height="769" loading="lazy"
+              alt="Ekran nowego sprawdzenia: pole na plik i lista opcji zakresu analizy"></picture></figure>
+          </li>
+          <li class="step">
+            <div class="step-text">
+              <span class="step-num" aria-hidden="true">2</span>
+              <h3>Poczekaj chwilę</h3>
+              <p>Analiza pracy 20–40 stron trwa zwykle od 1 do 5 minut. Kartę możesz zamknąć —
+                gotowy raport znajdziesz w historii sprawdzeń.</p>
+            </div>
+            <figure class="shot"><picture><source srcset="/static/img/03-postep-analizy-dark.jpg" media="(prefers-color-scheme: dark)"><img src="/static/img/03-postep-analizy.jpg" width="1200" height="353" loading="lazy"
+              alt="Pasek postępu analizy z informacją o wyszukiwaniu fraz"></picture></figure>
+          </li>
+          <li class="step">
+            <div class="step-text">
+              <span class="step-num" aria-hidden="true">3</span>
+              <h3>Popraw, co trzeba</h3>
+              <p>Raport podświetla fragmenty w tekście i wskazuje źródło każdego z nich. Kliknij podświetlenie,
+                żeby zobaczyć link i udział źródła. Raport wyeksportujesz do HTML lub wydrukujesz do PDF.</p>
+            </div>
+            <figure class="shot"><picture><source srcset="/static/img/05-raport-podswietlenia-dark.jpg" media="(prefers-color-scheme: dark)"><img src="/static/img/05-raport-podswietlenia.jpg" width="1200" height="769" loading="lazy"
+              alt="Tekst pracy z podświetleniami i okienkiem szczegółów źródła"></picture></figure>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- RAPORT Z BLISKA -->
+    <section id="raport" class="section">
+      <div class="wrap">
+        <h2>Raport z bliska</h2>
+        <p class="section-lead">Przykładowy raport dla pracy semestralnej o Koperniku — z celowo wklejonymi fragmentami z Wikipedii,
+          publikacji naukowej i akapitem napisanym w stylu modelu językowego.</p>
+        <div class="gallery">
+          <figure class="shot gallery-wide">
+            <picture><source srcset="/static/img/07-zrodla-dark.jpg" media="(prefers-color-scheme: dark)"><img src="/static/img/07-zrodla.jpg" width="1200" height="1040" loading="lazy"
+              alt="Lista źródeł z typami: Wikipedia, publikacja naukowa, internet, baza lokalna; poniżej porównanie wykrytej parafrazy ze zdaniem źródła"></picture>
+            <figcaption><strong>Źródła i parafrazy.</strong> Każde źródło z typem, linkiem i udziałem w tekście;
+              parafrazy zestawione ze zdaniem źródła.</figcaption>
+          </figure>
+          <figure class="shot">
+            <picture><source srcset="/static/img/08-detekcja-ai-dark.jpg" media="(prefers-color-scheme: dark)"><img src="/static/img/08-detekcja-ai.jpg" width="1200" height="1070" loading="lazy"
+              alt="Detekcja AI: wynik 71% z listą sygnałów i oceną poszczególnych fragmentów tekstu"></picture>
+            <figcaption><strong>Detekcja AI z uzasadnieniem.</strong> Widać, które cechy wpłynęły na wynik
+              i który fragment je zawiera.</figcaption>
+          </figure>
+          <figure class="shot shot-phone">
+            <picture><source srcset="/static/img/13-telefon-raport-dark.jpg" media="(prefers-color-scheme: dark)"><img src="/static/img/13-telefon-raport.jpg" width="560" height="953" loading="lazy"
+              alt="Raport wyświetlony na ekranie telefonu"></picture>
+            <figcaption><strong>Także na telefonie.</strong> Raport czytelny na każdym ekranie, z ciemnym motywem.</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- PRYWATNOŚĆ -->
+    <section id="prywatnosc" class="section section-alt">
+      <div class="wrap two-col">
+        <div>
+          <h2>Twoja praca zostaje Twoja</h2>
+          <p class="section-lead">Narzędzie jest zaprojektowane tak, żeby przechowywać jak najmniej i jak najkrócej.</p>
+        </div>
+        <ul class="checklist">
+          <li><strong>Plik nie jest trwale zapisywany.</strong> Tekst wyciągnięty z pliku jest usuwany zaraz po zakończeniu analizy.</li>
+          <li><strong>Raport znika po 72 godzinach.</strong> Możesz go też usunąć od razu jednym kliknięciem.</li>
+          <li><strong>Do wyszukiwarek trafiają tylko krótkie frazy</strong> — kilkadziesiąt fragmentów po kilkanaście słów, nigdy cała praca.</li>
+          <li><strong>Bez kont i logowania.</strong> Historia sprawdzeń jest powiązana tylko z Twoją przeglądarką.</li>
+          <li><strong>Baza lokalna wyłącznie za zgodą.</strong> Pliki referencyjne zapisujemy tylko po zaznaczeniu zgody; usuniesz je w każdej chwili.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- CZEGO NIE SPRAWDZA -->
+    <section class="section">
+      <div class="wrap two-col">
+        <div>
+          <h2>Czego PlagCheck nie sprawdza</h2>
+          <p class="section-lead">Lepiej wiedzieć to przed oddaniem pracy.</p>
+        </div>
+        <ul class="limits">
+          <li><strong>ORPPD i prywatnych baz uczelni.</strong> Ogólnopolskie Repozytorium Pisemnych Prac Dyplomowych nie udostępnia wyszukiwania osobom trzecim — porównanie z innymi pracami dyplomowymi wykona tylko system uczelni.</li>
+          <li><strong>Płatnych baz naukowych</strong> (np. pełnych tekstów z wydawnictw). OpenAlex daje tytuły, abstrakty i teksty z otwartego dostępu.</li>
+          <li><strong>Całej pracy słowo po słowie w internecie.</strong> Wyszukiwanych jest kilkadziesiąt reprezentatywnych fraz — brak trafień nie gwarantuje braku zapożyczeń.</li>
+          <li><strong>Pewności co do AI.</strong> Wynik detekcji to szacunek oparty na cechach stylu; teksty krótkie, techniczne i mocno redagowane bywają oceniane błędnie.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- DLA ADMINISTRATORÓW -->
+    <section class="section section-alt">
+      <div class="wrap admin">
+        <div>
+          <h2>Chcesz własną instancję?</h2>
+          <p>PlagCheck to aplikacja self-hosted. Działa na darmowej maszynie <strong>Oracle Cloud Always Free</strong>
+            — instalacja jednym poleceniem, z automatycznym HTTPS i codzienną kopią zapasową. Lżejsza wersja
+            działa też na hostingu CT8.</p>
+        </div>
+        <div class="admin-facts">
+          <dl>
+            <div><dt>Koszt hostingu</dt><dd>0 zł w ramach Always Free</dd></div>
+            <div><dt>Instalacja</dt><dd>jedno polecenie, ok. 15 minut</dd></div>
+            <div><dt>Wymagania</dt><dd>konto Oracle Cloud, terminal z SSH</dd></div>
+          </dl>
+          <p class="fine">Szczegóły w przewodniku dołączonym do paczki instalacyjnej — zapytaj administratora tej instancji.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section id="faq" class="section">
+      <div class="wrap faq-wrap">
+        <h2>Najczęstsze pytania</h2>
+        <div class="faq">
+          <details>
+            <summary>Czy PlagCheck zastąpi sprawdzenie w JSA?</summary>
+            <p>Nie. JSA porównuje pracę m.in. z ORPPD, do którego nie ma publicznego dostępu. PlagCheck służy
+              do samokontroli przed oddaniem: pomaga wyłapać fragmenty, które warto przeredagować lub opatrzyć przypisem.</p>
+          </details>
+          <details>
+            <summary>Czy moja praca gdzieś trafia?</summary>
+            <p>Tekst jest przetwarzany na serwerze tej instancji i usuwany po analizie. Do zewnętrznych wyszukiwarek
+              trafiają wyłącznie krótkie frazy (domyślnie do 25 na źródło). Raport z fragmentami tekstu znika po 72 godzinach.</p>
+          </details>
+          <details>
+            <summary>Jak dokładna jest detekcja AI?</summary>
+            <p>To szacunek, nie dowód. Narzędzie pokazuje, które cechy tekstu wpłynęły na wynik — możesz sam ocenić,
+              czy mają sens. Żaden detektor AI nie daje pewności, a pomyłki zdarzają się szczególnie przy tekstach
+              krótkich, technicznych i mocno redagowanych.</p>
+          </details>
+          <details>
+            <summary>Jakie pliki mogę sprawdzić?</summary>
+            <p>DOCX, PDF, ODT i TXT do 15 MB albo wklejony tekst. PDF musi zawierać warstwę tekstową —
+              skany bez rozpoznanego tekstu (OCR) nie zostaną odczytane.</p>
+          </details>
+          <details>
+            <summary>Czy cytaty i bibliografia obniżą mój wynik?</summary>
+            <p>Domyślnie nie: tekst w cudzysłowie „…”, sekcja bibliografii i spis treści są wyłączane z obliczeń
+              i w raporcie wyświetlane jako przekreślone. Możesz to zmienić przed sprawdzeniem.</p>
+          </details>
+          <details>
+            <summary>Dlaczego aplikacja prosi o klucz dostępu?</summary>
+            <p>Każde sprawdzenie korzysta z limitów zewnętrznych wyszukiwarek, dlatego dostęp ma tylko osoba z kluczem.
+              Klucz otrzymasz od administratora tej instancji; przeglądarka zapamięta go po pierwszym użyciu.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- KOŃCOWE CTA -->
+    <section class="final-cta">
+      <div class="wrap">
+        <h2>Sprawdź pracę, zanim ją oddasz.</h2>
+        <p>Wgraj plik, poczekaj kilka minut i popraw to, co trzeba.</p>
+        <a class="btn btn-primary btn-lg" href="/app">Otwórz aplikację</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-row">
+      <div>
+        <a class="brand brand-sm" href="/"><span class="brand-mark" aria-hidden="true">P</span>PlagCheck</a>
+        <p class="fine">Narzędzie wyłącznie do samokontroli własnych prac. Nie jest zamiennikiem JSA ani komercyjnych
+          detektorów AI i nie może służyć do omijania systemów uczelnianych.</p>
+      </div>
+      <div class="footer-links">
+        <a href="/app">Aplikacja</a>
+        <a href="#prywatnosc">Prywatność</a>
+        <a href="#faq">FAQ</a>
+        <a href="mailto:acdx@duck.com">Kontakt: acdx@duck.com</a>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

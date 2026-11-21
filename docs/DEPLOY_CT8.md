@@ -31,22 +31,22 @@ INSTALL_ARGS="--force-domain" ./deploy/ct8/deploy.sh LOGIN sN.ct8.pl
 
 Skrypt buduje paczkę, wysyła ją przez `scp` i uruchamia instalator przez `ssh`.
 
-## Instalacja ręczna (gotowa paczka `plagcheck-ct8-1.2.1.tar.gz`)
+## Instalacja ręczna (gotowa paczka `plagcheck-ct8-1.3.0.tar.gz`)
 
 ```bash
 # 1) wgranie paczki na serwer
-scp plagcheck-ct8-1.2.1.tar.gz LOGIN@sN.ct8.pl:
+scp plagcheck-ct8-1.3.0.tar.gz LOGIN@sN.ct8.pl:
 
 # 2) rozpakowanie i instalacja
 ssh LOGIN@sN.ct8.pl
-tar -xzf plagcheck-ct8-1.2.1.tar.gz
-bash plagcheck-ct8-1.2.1/install.sh LOGIN.ct8.pl
+tar -xzf plagcheck-ct8-1.3.0.tar.gz
+bash plagcheck-ct8-1.3.0/install.sh LOGIN.ct8.pl
 ```
 
 Albo w jednej linii:
 
 ```bash
-scp plagcheck-ct8-1.2.1.tar.gz LOGIN@sN.ct8.pl: && ssh -t LOGIN@sN.ct8.pl 'tar -xzf plagcheck-ct8-1.2.1.tar.gz && bash plagcheck-ct8-1.2.1/install.sh LOGIN.ct8.pl'
+scp plagcheck-ct8-1.3.0.tar.gz LOGIN@sN.ct8.pl: && ssh -t LOGIN@sN.ct8.pl 'tar -xzf plagcheck-ct8-1.3.0.tar.gz && bash plagcheck-ct8-1.3.0/install.sh LOGIN.ct8.pl'
 ```
 
 Instalator wypisze adres strony i **wygenerowany klucz dostępu** (wpisujesz go raz

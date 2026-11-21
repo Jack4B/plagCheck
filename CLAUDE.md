@@ -9,7 +9,7 @@
 Alternatywa: CT8.pl (MyDevil, FreeBSD, Passenger, profil lite).
 **Konspekt:** `docs/konspekt.md`. Skill cyklu życia: `.claude/skills/plagiarism-detector-lifecycle/`.
 
-## Stan (v1.2.1)
+## Stan (v1.3.0)
 
 Etapy 1–6 konspektu zrealizowane. **Koncepcja v1.1** (`docs/KONCEPCJA.md`): dwa profile jednej bazy kodu —
 **lite** (CT8, Passenger, czysty Python) i **full** (Docker/VPS, + parafrazy synonimiczne przez embeddingi);
@@ -82,7 +82,7 @@ app/jobs.py, worker.py zadania w tle (wątek / cron), CLI
 app/db.py              tabele: jobs, reference_docs, search_cache
 app/services/          extractor, preprocessor, textutils, phrases, web_search,
                        fingerprints, similarity, semantic, ai_detector, report
-app/static/            frontend
+app/static/            frontend: landing.html/.css/.js (strona główna "/"), index.html + app.js (aplikacja "/app"), img/ (zrzuty, jasne i -dark)
 deploy/oracle/         setup.sh (na serwerze), deploy.sh (lokalnie), Caddyfile
 deploy/ct8/            install.sh (na serwerze), deploy.sh (lokalnie)
 Dockerfile, docker-compose.yml   profil full/lite + Caddy (profil compose "https")

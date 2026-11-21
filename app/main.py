@@ -277,5 +277,11 @@ async def http_error(_request: Request, exc: HTTPException):
 
 
 @app.get("/", include_in_schema=False)
+def landing():
+    return FileResponse(STATIC_DIR / "landing.html", headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/app", include_in_schema=False)
+@app.get("/app/", include_in_schema=False)
 def index():
     return FileResponse(STATIC_DIR / "index.html", headers={"Cache-Control": "no-cache"})

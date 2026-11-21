@@ -181,9 +181,25 @@ def test_access_key(client, monkeypatch):
 
 def test_frontend_and_security_headers(client):
     res = client.get("/")
-    assert res.status_code == 200 and "PlagCheck" in res.text
+    assert res.status_code == 200 and "Sprawdź pracę, zanim ją oddasz." in res.text  # landing
     assert "default-src 'self'" in res.headers["content-security-policy"]
-    assert client.get("/static/app.js").status_code == 200
+    app_page = client.get("/app")
+    assert app_page.status_code == 200 and "/static/app.js" in app_page.text
+    assert client.get("/app/").status_code == 200
+    for asset in ("/static/app.js", "/static/landing.css", "/static/landing.js", "/static/img/04-raport.jpg"):
+        assert client.get(asset).status_code == 200, asset
+
+
+def test_landing_has_no_inline_scripts_or_styles():
+    """CSP (script-src/style-src 'self') zablokowałby inline — landing musi być w pełni zewnętrzny."""
+    import re
+    from pathlib import Path
+
+    html = (Path(__file__).resolve().parent.parent / "app/static/landing.html").read_text(encoding="utf-8")
+    assert "<style" not in html and " style=" not in html
+    assert not re.search(r"<script(?![^>]*\bsrc=)", html)
+    for img in re.findall(r"<img [^>]*>", html):
+        assert 'alt="' in img and "width=" in img and "height=" in img, img
 
 
 def test_thread_mode_runs_job_in_background(client, fake_provider, monkeypatch):

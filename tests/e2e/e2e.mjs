@@ -19,7 +19,10 @@ const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
 page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
 
+// Landing pod "/", aplikacja pod "/app".
 await page.goto(BASE);
+await page.getByRole("heading", { level: 1, name: "Sprawdź pracę, zanim ją oddasz." }).waitFor();
+await page.getByRole("link", { name: "Otwórz aplikację" }).first().click();
 await page.getByText("Sprawdź pracę przed oddaniem").waitFor();
 await page.setInputFiles("#file", FILE);
 await page.getByText("Bardzo_dluga_nazwa").waitFor();
@@ -36,7 +39,7 @@ if ((await page.locator("#view").innerText()).includes("null")) fail("Tekst 'nul
 await page.getByRole("tab", { name: /Detekcja AI/ }).click();
 await page.getByText(/Wynik: \d+%/).waitFor();
 await page.screenshot({ path: `${SHOTS}/e2e-ai.png` });
-await page.goto(`${BASE}/#/history`);
+await page.goto(`${BASE}/app#/history`);
 await page.getByText("Bardzo_dluga_nazwa").first().waitFor();
 
 // Telefon: strona startowa i raport z długą nazwą pliku — bez poziomego scrolla.
@@ -44,8 +47,11 @@ const mctx = await browser.newContext({ viewport: { width: 390, height: 844 }, s
 const mobile = await mctx.newPage();
 const overflows = () => mobile.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
 await mobile.goto(BASE);
+await mobile.getByRole("heading", { level: 1, name: "Sprawdź pracę, zanim ją oddasz." }).waitFor();
+if (await overflows()) fail("Poziomy scroll na telefonie (landing)!");
+await mobile.goto(`${BASE}/app`);
 await mobile.getByText("Sprawdź pracę przed oddaniem").waitFor();
-if (await overflows()) fail("Poziomy scroll na telefonie (start)!");
+if (await overflows()) fail("Poziomy scroll na telefonie (start aplikacji)!");
 await mobile.goto(reportUrl);
 await mobile.locator(".kpi").first().waitFor();
 if (await overflows()) fail("Poziomy scroll na telefonie (raport)!");

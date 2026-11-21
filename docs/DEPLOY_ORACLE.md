@@ -84,14 +84,14 @@ SSH_KEY=~/.ssh/oracle.key ./deploy/oracle/deploy.sh 152.70.1.2 --domain plagiat.
 
 Skrypt buduje paczkę, wysyła ją `scp` i uruchamia `setup.sh` przez `ssh`.
 
-### Albo ręcznie, z gotowej paczki `plagcheck-oracle-1.2.1.tar.gz`
+### Albo ręcznie, z gotowej paczki `plagcheck-oracle-1.3.0.tar.gz`
 
 ```bash
-scp -i ~/.ssh/oracle.key plagcheck-oracle-1.2.1.tar.gz ubuntu@152.70.1.2: \
- && ssh -t -i ~/.ssh/oracle.key ubuntu@152.70.1.2 'tar -xzf plagcheck-oracle-1.2.1.tar.gz && sudo bash plagcheck-oracle-1.2.1/setup.sh'
+scp -i ~/.ssh/oracle.key plagcheck-oracle-1.3.0.tar.gz ubuntu@152.70.1.2: \
+ && ssh -t -i ~/.ssh/oracle.key ubuntu@152.70.1.2 'tar -xzf plagcheck-oracle-1.3.0.tar.gz && sudo bash plagcheck-oracle-1.3.0/setup.sh'
 ```
 
-(z domeną: `… sudo bash plagcheck-oracle-1.2.1/setup.sh --domain plagiat.mojadomena.pl'`)
+(z domeną: `… sudo bash plagcheck-oracle-1.3.0/setup.sh --domain plagiat.mojadomena.pl'`)
 
 Na końcu skrypt wypisze adres i **klucz dostępu** (wpisujesz go raz w przeglądarce).
 
